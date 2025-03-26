@@ -8,7 +8,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from rsl_rl.modules import ActorCritic
-from rsl_rl.storage import RolloutStorage, RolloutStorageMultiCritic
+from rsl_rl.storage import RolloutStorage
 
 
 class PPODagger:

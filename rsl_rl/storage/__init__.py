@@ -2,4 +2,3 @@
 #  SPDX-License-Identifier: BSD-3-Clause
 
 from .rollout_storage import RolloutStorage
-from .rollout_storage_multi_critic import RolloutStorageMultiCritic

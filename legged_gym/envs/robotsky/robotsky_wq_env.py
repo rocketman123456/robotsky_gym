@@ -307,7 +307,7 @@ class RobotSkyWQ(LeggedRobot):
         # Survival reward / penalty
         return ~(self.reset_buf * ~self.time_out_buf)
 
-    # -- gait --
+    # -- gait -- #
 
     def _reward_joint_pos(self):
         """
