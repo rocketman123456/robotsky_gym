@@ -1,0 +1,66 @@
+{
+    "env": {
+        "num_envs": 4000,
+        "enable_env_encoder": true,
+        "enable_adaptation_module": true,
+        "evaluate_teacher": true,
+        "enable_action_filter": false
+    },
+    "terrain": {
+        "mesh_type": "trimesh",
+        "curriculum": true
+    },
+    "noise": {
+        "add_noise": true
+    },
+    "domain_rand": {
+        "add_random": true,
+        "randomize_friction": true,
+        "friction_range": [
+            0.5,
+            1.5
+        ],
+        "randomize_base_mass": true,
+        "randomize_body_inertia": true,
+        "push_robots": true,
+        "push_robots_force": false,
+        "randomize_leg_mass": true,
+        "randomize_com_displacement": true,
+        "randomize_restitution": true,
+        "randomize_motor_every_step": true,
+        "randomize_motor_strength": true,
+        "randomize_kp_factor": true,
+        "randomize_kd_factor": true,
+        "randomize_init_joint_pos": true,
+        "enable_latent": true
+    },
+    "rewards": {
+        "only_positive_rewards": false,
+        "scales": {
+            "tracking_lin_vel": 1.0,
+            "tracking_ang_vel": 0.5,
+            "ang_vel_xy": -0.02,
+            "lin_vel_z": -2.0,
+            "feet_air_time": 1.0,
+            "feet_land_time": 0.0,
+            "feet_stumble": -0.1,
+            "collision": -5.0,
+            "feet_contact_forces": -0.0001,
+            "dof_pos_limits": -1.0,
+            "dof_torque_limits": -0.002,
+            "dof_acc": -2.0e-7,
+            "dof_vel": -1.0e-6,
+            "torques": -1.0e-5,
+            "torques_wheel": -2.0e-6,
+            "action_rate": -0.0002,
+            "energy_expenditure": -0.00001,
+            "default_joint_reg_pbrs": 1.0,
+            "orientation_pbrs": 1.0,
+            "base_height_pbrs": 1.0,
+            "dof_acc_pbrs": 0.0,
+            "dof_vel_pbrs": 0.0,
+            "torques_reg_pbrs": 0.0,
+            "torques_wheel_reg_pbrs": 0.0
+        }
+    }
+}

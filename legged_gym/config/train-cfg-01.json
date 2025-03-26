@@ -1,0 +1,12 @@
+{
+    "policy": {
+        "init_noise_std": 1.5
+    },
+    "runner": {
+        "max_iterations": 3000,
+        "resume": false
+    },
+    "algorithm": {
+        "entropy_coef": 0.01
+    }
+}
