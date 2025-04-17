@@ -54,7 +54,7 @@ class RobotSkyWQCfg(LeggedRobotCfg):
         knee_name = "Knee"
 
         penalize_contacts_on = ["base_link", "Knee", "Hip"]
-        terminate_after_contacts_on = ["base_link"]  # "Hip", "Knee"
+        terminate_after_contacts_on = ["base_link", "Knee"]  # "Hip", "Knee"
         self_collisions = 0  # 1  # 1 to disable, 0 to enable...bitwise filter
         flip_visual_attachments = False
         replace_cylinder_with_capsule = False
@@ -172,6 +172,13 @@ class RobotSkyWQCfg(LeggedRobotCfg):
             "Wheel_Joint": 0.5,
         }
 
+        vel_limits = {
+            "Roll_Joint": 12.0,
+            "Hip_Joint": 30.0,
+            "Knee_Joint": 30.0,
+            "Wheel_Joint": 12.0,
+        }
+
         # action scale: target angle = actionScale * action + defaultAngle
         action_joint_scale = 0.25
         action_wheel_scale = 1.0  # 2.0
@@ -261,6 +268,7 @@ class RobotSkyWQCfg(LeggedRobotCfg):
 
     class rewards(LeggedRobotCfg.rewards):
         base_height_target = 0.25  # 0.35  # 0.38
+        tracking_sigma = 0.2
         target_feet_height = 0.15
         soft_dof_pos_limit = 0.95
         soft_dof_vel_limit = 0.95
@@ -376,8 +384,10 @@ class RobotSkyWQCfg(LeggedRobotCfg):
 
             # -- vel tracking --
             # tracking_lin_vel_eth = 1.0
-            tracking_lin_vel = 2.0  # 1.0  # 2.0
-            tracking_ang_vel = 2.0  # 0.5  # 1.0
+            tracking_lin_vel = 1.0  # 1.0  # 2.0
+            tracking_ang_vel = 1.0  # 0.5  # 1.0
+            # tracking_lin_vel_v4 = -1.0
+            # tracking_ang_vel_v4 = -1.0
             # low_speed = 0.5
 
             # -- gait --
@@ -394,15 +404,15 @@ class RobotSkyWQCfg(LeggedRobotCfg):
             # barrier_gait_hr = 0.2
 
             no_fly = 0.1  # 0.2  # 0.05
-            no_fly_v1 = -0.1  # -0.2
+            # no_fly_v1 = -0.1  # -0.2
             # no_fly_v2 = 0.1  # 0.2  # 0.1
             # no_fly_v3 = 0.1
             # feet_stumble = -0.02  # 0.5
             # feet_clearance_v1 = -0.1  # -0.05  # -0.2
             # foot_slip = -0.1
 
-            feet_distance_x = 0.2  # 0.2
-            feet_distance_y = 0.2  # 0.2
+            # feet_distance_x = 0.2  # 0.2
+            # feet_distance_y = 0.2  # 0.2
             # knee_distance = 0.2  # 0.2
             # feet_stumble_v1 = -1.25
             # stand_still = -0.5  # -0.02  # -0.05
@@ -501,7 +511,7 @@ class RobotSkyWQCfgPPO(LeggedRobotCfgPPO):
         policy_class_name = "ActorCritic"  # ActorCritic, ActorCriticRecurrent
         algorithm_class_name = "PPO"
         num_steps_per_env = 24  # 48  # 24  # per iteration
-        max_iterations = 5001  # 2001  # number of policy updates
+        max_iterations = 10000  # 2001  # number of policy updates
 
         # logging
         save_interval = 100  # check for potential saves every this many iterations

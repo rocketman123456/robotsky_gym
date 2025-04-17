@@ -4,3 +4,4 @@ __pycache__/*
 logs/
 wandb/
 .DS_Store
+.vscode/settings.json

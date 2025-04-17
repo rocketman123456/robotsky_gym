@@ -1,1 +1,1 @@
-conda env config vars set LD_LIBRARY_PATH=/home/rocketsky/Library/miniconda3/envs/rlgpu/lib/
+conda env config vars set LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/rocketsky/Library/miniconda3/envs/robotsky-wq/lib

@@ -18,6 +18,35 @@ class RobotSkyWQ(LeggedRobot):
         self.rwd_prev = {}
         self.reset_idx(torch.tensor(range(self.num_envs), device=self.device))
 
+    def _process_dof_props(self, props, env_id):
+        """Callback allowing to store/change/randomize the DOF properties of each environment.
+            Called During environment creation.
+            Base behavior: stores position, velocity and torques limits defined in the URDF
+
+        Args:
+            props (numpy.array): Properties of each DOF of the asset
+            env_id (int): Environment id
+
+        Returns:
+            [numpy.array]: Modified DOF properties
+        """
+        if env_id == 0:
+            self.dof_pos_limits = torch.zeros(self.num_dof, 2, dtype=torch.float, device=self.device, requires_grad=False)
+            self.dof_vel_limits = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
+            self.torque_limits = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
+            for i in range(len(props)):
+                self.dof_pos_limits[i, 0] = props["lower"][i].item()
+                self.dof_pos_limits[i, 1] = props["upper"][i].item()
+                # self.dof_vel_limits[i] = props["velocity"][i].item()
+                self.dof_vel_limits[i] = self.cfg.control.vel_limits[i]
+                self.torque_limits[i] = props["effort"][i].item()
+                # soft limits
+                m = (self.dof_pos_limits[i, 0] + self.dof_pos_limits[i, 1]) / 2
+                r = self.dof_pos_limits[i, 1] - self.dof_pos_limits[i, 0]
+                self.dof_pos_limits[i, 0] = m - 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
+                self.dof_pos_limits[i, 1] = m + 0.5 * r * self.cfg.rewards.soft_dof_pos_limit
+        return props
+
     def _get_noise_scale_vec(self, cfg):
         """Sets a vector used to scale the noise added to the observations.
             [NOTE]: Must be adapted when changing the observations structure
@@ -598,6 +627,17 @@ class RobotSkyWQ(LeggedRobot):
         # Tracking of angular velocity commands (yaw)
         ang_vel_error = torch.square(self.commands[:, 2] - self.base_ang_vel[:, 2])  # * (torch.norm(self.commands[:, 2]) > 0.1)
         return torch.exp(-ang_vel_error / self.cfg.rewards.tracking_sigma)
+
+    def _reward_tracking_lin_vel_v4(self):
+        # Tracking of linear velocity commands (xy axes)
+        lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)  # * (torch.norm(self.commands[:, :2], dim=1) > 0.1)
+        return lin_vel_error
+
+    def _reward_tracking_ang_vel_v4(self):
+        # Tracking of angular velocity commands (yaw)
+        ang_vel_error = torch.square(self.commands[:, 2] - self.base_ang_vel[:, 2])  # * (torch.norm(self.commands[:, 2]) > 0.1)
+        return ang_vel_error
+
 
     def _reward_tracking_lin_vel_v1(self):
         # Tracking of linear velocity commands (xy axes)
