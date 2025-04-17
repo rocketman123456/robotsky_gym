@@ -19,26 +19,18 @@ class RobotSkyWQ(LeggedRobot):
         self.reset_idx(torch.tensor(range(self.num_envs), device=self.device))
 
     def _process_dof_props(self, props, env_id):
-        """Callback allowing to store/change/randomize the DOF properties of each environment.
-            Called During environment creation.
-            Base behavior: stores position, velocity and torques limits defined in the URDF
-
-        Args:
-            props (numpy.array): Properties of each DOF of the asset
-            env_id (int): Environment id
-
-        Returns:
-            [numpy.array]: Modified DOF properties
-        """
         if env_id == 0:
             self.dof_pos_limits = torch.zeros(self.num_dof, 2, dtype=torch.float, device=self.device, requires_grad=False)
             self.dof_vel_limits = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
             self.torque_limits = torch.zeros(self.num_dof, dtype=torch.float, device=self.device, requires_grad=False)
             for i in range(len(props)):
+                name = self.dof_names[i]
                 self.dof_pos_limits[i, 0] = props["lower"][i].item()
                 self.dof_pos_limits[i, 1] = props["upper"][i].item()
                 # self.dof_vel_limits[i] = props["velocity"][i].item()
-                self.dof_vel_limits[i] = self.cfg.control.vel_limits[i]
+                for dof_name in self.cfg.control.stiffness.keys():
+                    if dof_name in name:
+                        self.dof_vel_limits[i] = self.cfg.control.vel_limits[dof_name]
                 self.torque_limits[i] = props["effort"][i].item()
                 # soft limits
                 m = (self.dof_pos_limits[i, 0] + self.dof_pos_limits[i, 1]) / 2
