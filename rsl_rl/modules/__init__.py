@@ -4,5 +4,7 @@
 
 from .actor_critic import ActorCritic
 from .actor_critic_recurrent import ActorCriticRecurrent
+from .actor_multi_critic import ActorCriticMultiCritic
+from .actor_multi_critic_recurrent import ActorCriticRecurrentMultiCritic
 
 # from .actor_critic_lstm import ActorCriticLSTM
