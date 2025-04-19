@@ -1,4 +1,5 @@
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
+import numpy as np
 
 
 class RobotSkyWQCfg(LeggedRobotCfg):
@@ -8,7 +9,7 @@ class RobotSkyWQCfg(LeggedRobotCfg):
         num_actor_obs = 57 + 0  # 57
         num_critic_obs = 123 + 0  # 123
         num_actions = 16
-        episode_length_s = 10  # 20
+        episode_length_s = 20
 
         num_privileged_obs = num_critic_obs
         num_single_obs = num_actor_obs
@@ -25,8 +26,8 @@ class RobotSkyWQCfg(LeggedRobotCfg):
         multi_critics = False
         dagger = True
 
-        joint_indices = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
-        wheel_indices = [3, 7, 11, 15]
+        joint_indices = np.array([0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14])
+        wheel_indices = np.array([3, 7, 11, 15])
 
     class expert:
         num_envs = 4000
@@ -181,13 +182,12 @@ class RobotSkyWQCfg(LeggedRobotCfg):
 
         # action scale: target angle = actionScale * action + defaultAngle
         action_joint_scale = 0.25
-        action_wheel_scale = 1.0  # 2.0
-        # hip_scale_reduction = 4.0  # 1.0  # 2.0
+        action_wheel_scale = 1.0
         # decimation: Number of control action updates @ sim DT per policy DT
-        decimation = 10  # 50hz
+        decimation = 4  # 50hz
 
     class sim(LeggedRobotCfg.sim):
-        dt = 0.002  # 1000 Hz
+        dt = 0.005  # 1000 Hz
 
     class domain_rand(LeggedRobotCfg.domain_rand):
         add_random = True
@@ -267,7 +267,7 @@ class RobotSkyWQCfg(LeggedRobotCfg):
             body_height_cmd = 2.0
 
     class rewards(LeggedRobotCfg.rewards):
-        base_height_target = 0.25  # 0.35  # 0.38
+        base_height_target = 0.30  # 0.35  # 0.38
         tracking_sigma = 0.2
         target_feet_height = 0.15
         soft_dof_pos_limit = 0.95
@@ -276,8 +276,10 @@ class RobotSkyWQCfg(LeggedRobotCfg):
         max_contact_force = 150.0
         target_joint_pos_scale = 0.2
         only_positive_rewards = False
-        regularization_scale_curriculum = True
         clip_rewards = True
+
+        regularization_scale_curriculum = False
+
         cycle_time = 0.5  # sec
         phase_offset_fr = 0.5
         phase_offset_fl = 0.0
@@ -384,7 +386,8 @@ class RobotSkyWQCfg(LeggedRobotCfg):
 
             # -- vel tracking --
             # tracking_lin_vel_eth = 1.0
-            tracking_lin_vel = 1.0  # 1.0  # 2.0
+            tracking_lin_vel_body = 1.0
+            # tracking_lin_vel = 1.0  # 1.0  # 2.0
             tracking_ang_vel = 1.0  # 0.5  # 1.0
             # tracking_lin_vel_v4 = -1.0
             # tracking_ang_vel_v4 = -1.0
@@ -403,11 +406,11 @@ class RobotSkyWQCfg(LeggedRobotCfg):
             # barrier_gait_hl = 0.2
             # barrier_gait_hr = 0.2
 
-            no_fly = 0.1  # 0.2  # 0.05
+            no_fly = 0.05  # 0.1  # 0.05
             # no_fly_v1 = -0.1  # -0.2
             # no_fly_v2 = 0.1  # 0.2  # 0.1
             # no_fly_v3 = 0.1
-            # feet_stumble = -0.02  # 0.5
+            feet_stumble = -0.02  # -0.05
             # feet_clearance_v1 = -0.1  # -0.05  # -0.2
             # foot_slip = -0.1
 
@@ -415,71 +418,57 @@ class RobotSkyWQCfg(LeggedRobotCfg):
             # feet_distance_y = 0.2  # 0.2
             # knee_distance = 0.2  # 0.2
             # feet_stumble_v1 = -1.25
-            # stand_still = -0.5  # -0.02  # -0.05
-            stand_still_v1 = -1.0  # -0.5
+            # stand_still = -0.1
+            stand_still_v1 = -0.1
+            stand_still_wheel = -0.2  # -0.1
             # feet_clearance = -0.001
             # feet_clearance_v2 = -0.01
             # feet_clearance_v2 = -0.001
 
             # -- contact --
             collision = -10.0  # -5.0  # -2.0
-            feet_contact_forces = -0.001  # -0.0001
+            feet_contact_forces = -0.002  # -0.0001
 
             # -- base pos --
             orientation = -10.0  # -5.0  # -2.0  # -1.0
+            upward = -0.02
             base_height = -5.0  # -2.0
-            # orientation_v1 = -1.0  # -0.5
-            # base_height_v1 = -5.0
-            ang_vel_xy = -0.05  # -0.1  # -0.05
-            lin_vel_z = -2.0  # -10.0  # -4.0  # -2.0
-            base_acc = 0.5  # 2.0  # 0.5  # 0.2
+            ang_vel_xy = -0.05  # -0.1
+            lin_vel_z = -1.0  # -2.0
+            base_acc = 0.2  # 0.5
 
             # -- joint limit --
-            dof_pos_limits = -5.0  # -1.0
-            dof_torque_limits = -0.5  # -0.1  # -1.0  # -0.002
+            dof_pos_limits = -10.0  # -5.0
+            dof_vel_limits = -5.0  # -2.0
+            dof_vel_wheel_limits = -2.0
+            dof_torque_limits = -1.0  # -0.5
+            dof_torque_wheel_limits = -1.0  # -0.05
 
             # -- energy --
-            dof_acc = -1.0e-8  # -2.0e-8  # -2.0e-7
-            dof_vel = -1.0e-4  # -2.0e-3  # -2.0e-4
-            torques = -5.0e-5  # -2.0e-5  # -1.0e-5
-            torques_wheel = -2.0e-1  # -2.0e-2  # -2.0e-3
-            action_rate = -2.0e-4  # -5.0e-4  # -2.0e-4  # -5.0e-6
-            action_acc = -1.0e-3  # -1.0e-5  # -1.0e-4
-            energy_expenditure = -2.0e-4  # -1.0e-4
+            dof_acc = -1.0e-7  # -1.0e-8
+            dof_acc_wheel = -1.0e-7  # -1.0e-8
+            dof_vel = -2.0e-4  # -1.0e-4
+            dof_vel_wheel = -1.0e-5
+            torques = -1.0e-4  # -5.0e-5
+            torques_wheel = -5.0e-1  # -2.0e-1
+            action_rate = -1.0e-3  # -2.0e-4
+            action_rate_wheel = -5.0e-5
+            action_acc = -5.0e-3  # -1.0e-3
+            action_acc_wheel = -1.0e-4
+            energy_expenditure = -5.0e-4  # -2.0e-4
 
             # -- extra --
+            joint_deviation_legs = -2.0  # -1.0
+            joint_mirror = -1.0
             # default_joint_pos = -4.0  # -2.0  # -1.0  # 0.5
             # hip_default_joint_pos = -2.0  # -10.0  # -5.0
             # default_joint_pos_v2 = -1.0  # -0.5  # -1.0  # -5.0
             # ref_joint_pos = -1.0
             # default_joint_regularization = 1.0
 
-            # -- PBRS rewards --
-            # Sweep values: [0.1, 0.5, 2.0, 5.0, 10.]
-            # Default: 1.0
-
-            # tracking_lin_vel_pbrs = 5.0
-            # tracking_ang_vel_pbrs = 1.0
-
-            # ang_vel_xy_reg_pbrs = 1.0
-            # lin_vel_z_reg_pbrs = 0.1
-
-            # feet_air_time_pbrs = 1.0
-
-            # default_joint_reg_pbrs = 1.0  # 0.1  # 1.0
-            # ref_joint_reg_pbrs = 1.0
-            # orientation_pbrs = 1.0
-            # base_height_pbrs = 1.0
-
-            # dof_acc_pbrs = 0.1
-            # dof_vel_pbrs = 0.1
-            # torques_reg_pbrs = 0.1
-            # torques_wheel_reg_pbrs = 0.1
-            # action_rate_pbrs = 0.1
-
 
 class RobotSkyWQCfgPPO(LeggedRobotCfgPPO):
-    seed = 1
+    seed = 42
 
     class policy(LeggedRobotCfgPPO.policy):
         init_noise_std = 1.0
@@ -511,7 +500,7 @@ class RobotSkyWQCfgPPO(LeggedRobotCfgPPO):
         policy_class_name = "ActorCritic"  # ActorCritic, ActorCriticRecurrent
         algorithm_class_name = "PPO"
         num_steps_per_env = 24  # 48  # 24  # per iteration
-        max_iterations = 10000  # 2001  # number of policy updates
+        max_iterations = 25000  # 2001  # number of policy updates
 
         # logging
         save_interval = 100  # check for potential saves every this many iterations

@@ -69,7 +69,7 @@ def play(args):
         if FIX_COMMAND:
             env.commands[:, 0] = 1.0
             env.commands[:, 1] = 0.0
-            env.commands[:, 2] = 0.0
+            env.commands[:, 2] = 0.5
             env.commands[:, 3] = 0.0
 
         if env.enable_env_encoder:

@@ -6,6 +6,7 @@ from legged_gym.envs import LeggedRobot
 from legged_gym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 from legged_gym.envs.robotsky.robotsky_wq_config import RobotSkyWQCfg, RobotSkyWQCfgPPO
 from legged_gym.utils.terrain import WheeledQuadTerrain
+from legged_gym.utils.math import *
 
 
 class RobotSkyWQ(LeggedRobot):
@@ -564,11 +565,19 @@ class RobotSkyWQ(LeggedRobot):
 
     # -- base --
 
+    def _reward_orientation(self):
+        # Penalize non flat base orientation
+        return torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1)
+
     def _reward_orientation_v1(self):
         # Penalize non flat base orientation
         target_projected_gravity = torch.zeros_like(self.projected_gravity)
         target_projected_gravity[:, 2] = -1.0
         return torch.sum(torch.square(target_projected_gravity - self.projected_gravity), dim=1)
+
+    def _reward_upward(self):
+        # Penalize non flat base orientation
+        return torch.square(1.0 - self.projected_gravity[:, 2])
 
     def _reward_base_height(self):
         """
@@ -615,6 +624,12 @@ class RobotSkyWQ(LeggedRobot):
         lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)  # * (torch.norm(self.commands[:, :2], dim=1) > 0.1)
         return torch.exp(-lin_vel_error / self.cfg.rewards.tracking_sigma)
 
+    def _reward_tracking_lin_vel_body(self):
+        # Tracking of linear velocity commands (xy axes)
+        vel_yaw = quat_rotate_inverse(yaw_quat(self.base_quat), self.base_lin_vel[:, :3])
+        lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - vel_yaw[:, :2]), dim=1)  # * (torch.norm(self.commands[:, :2], dim=1) > 0.1)
+        return torch.exp(-lin_vel_error / self.cfg.rewards.tracking_sigma)
+
     def _reward_tracking_ang_vel(self):
         # Tracking of angular velocity commands (yaw)
         ang_vel_error = torch.square(self.commands[:, 2] - self.base_ang_vel[:, 2])  # * (torch.norm(self.commands[:, 2]) > 0.1)
@@ -629,7 +644,6 @@ class RobotSkyWQ(LeggedRobot):
         # Tracking of angular velocity commands (yaw)
         ang_vel_error = torch.square(self.commands[:, 2] - self.base_ang_vel[:, 2])  # * (torch.norm(self.commands[:, 2]) > 0.1)
         return ang_vel_error
-
 
     def _reward_tracking_lin_vel_v1(self):
         # Tracking of linear velocity commands (xy axes)
@@ -705,13 +719,17 @@ class RobotSkyWQ(LeggedRobot):
     def _reward_stand_still(self):
         # Penalize motion at zero commands
         dof_error = torch.sum(torch.abs(self.dof_pos[:, self.cfg.env.joint_indices] - self.default_dof_pos[:, self.cfg.env.joint_indices]), dim=1)
-        return dof_error * (torch.norm(self.commands[:, 2]) < 0.05)
+        return dof_error * (torch.norm(self.commands[:, 2]) < 0.1)
 
     def _reward_stand_still_v1(self):
         # Penalize motion at zero commands
-        # dof_error = torch.sum(torch.abs(self.dof_pos[:, self.cfg.env.joint_indices] - self.default_dof_pos[:, self.cfg.env.joint_indices]), dim=1)
-        dof_error = torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1)
-        return dof_error * (torch.norm(self.commands[:, :3], dim=1) < 0.05)
+        dof_error = torch.sum(torch.abs(self.dof_pos[:, self.cfg.env.joint_indices] - self.default_dof_pos[:, self.cfg.env.joint_indices]), dim=1)
+        return dof_error * (torch.norm(self.commands[:, :3], dim=1) < 0.1)
+
+    def _reward_stand_still_wheel(self):
+        # Penalize motion at zero commands
+        vel_error = torch.sum(torch.abs(self.dof_vel[:, self.cfg.env.wheel_indices]), dim=1)
+        return vel_error * (torch.norm(self.commands[:, :3], dim=1) < 0.1)
 
     def _reward_torques(self):
         """
@@ -738,30 +756,109 @@ class RobotSkyWQ(LeggedRobot):
         """
         return torch.sum(torch.square(self.dof_vel[:, self.cfg.env.joint_indices]), dim=1)
 
+    def _reward_dof_vel_wheel(self):
+        """
+        Penalizes high velocities at the degrees of freedom (DOF) of the robot. This encourages smoother and
+        more controlled movements.
+        """
+        return torch.sum(torch.square(self.dof_vel[:, self.cfg.env.wheel_indices]), dim=1)
+
     def _reward_dof_acc(self):
         """
         Penalizes high accelerations at the robot's degrees of freedom (DOF). This is important for ensuring
         smooth and stable motion, reducing wear on the robot's mechanical parts.
         """
-        return torch.sum(torch.square((self.last_dof_vel - self.dof_vel) / self.dt), dim=1)
+        return torch.sum(torch.square((self.last_dof_vel[:, self.cfg.env.joint_indices] - self.dof_vel[:, self.cfg.env.joint_indices]) / self.dt), dim=1)
+
+    def _reward_dof_acc_wheel(self):
+        """
+        Penalizes high accelerations at the robot's degrees of freedom (DOF). This is important for ensuring
+        smooth and stable motion, reducing wear on the robot's mechanical parts.
+        """
+        return torch.sum(torch.square((self.last_dof_vel[:, self.cfg.env.wheel_indices] - self.dof_vel[:, self.cfg.env.wheel_indices]) / self.dt), dim=1)
+
+    def _reward_dof_pos_limits(self):
+        # Penalize dof positions too close to the limit
+        out_of_limits = -(
+            self.dof_pos[:, self.cfg.env.joint_indices] - self.dof_pos_limits[self.cfg.env.joint_indices, 0] * self.cfg.rewards.soft_dof_pos_limit
+        ).clip(
+            max=0.0
+        )  # lower limit
+        out_of_limits += (
+            self.dof_pos[:, self.cfg.env.joint_indices] - self.dof_pos_limits[self.cfg.env.joint_indices, 1] * self.cfg.rewards.soft_dof_pos_limit
+        ).clip(min=0.0)
+        return torch.sum(out_of_limits, dim=1)
 
     def _reward_dof_vel_limits(self):
         # Penalize dof velocities too close to the limit
         # clip to max error = 1 rad/s per joint to avoid huge penalties
-        return torch.sum((torch.abs(self.dof_vel) - self.dof_vel_limits * self.cfg.safety.soft_dof_vel_limit).clip(min=0.0, max=1.0), dim=1)
+        return torch.sum(
+            (
+                torch.abs(self.dof_vel[:, self.cfg.env.joint_indices]) - self.dof_vel_limits[self.cfg.env.joint_indices] * self.cfg.rewards.soft_dof_vel_limit
+            ).clip(min=0.0, max=1.0),
+            dim=1,
+        )
+
+    def _reward_dof_vel_wheel_limits(self):
+        # Penalize dof velocities too close to the limit
+        # clip to max error = 1 rad/s per joint to avoid huge penalties
+        return torch.sum(
+            (
+                torch.abs(self.dof_vel[:, self.cfg.env.wheel_indices]) - self.dof_vel_limits[self.cfg.env.wheel_indices] * self.cfg.rewards.soft_dof_vel_limit
+            ).clip(min=0.0, max=1.0),
+            dim=1,
+        )
 
     def _reward_dof_torque_limits(self):
         # penalize torques too close to the limit
-        return torch.sum((torch.abs(self.torques) - self.torque_limits * self.cfg.rewards.soft_torque_limit).clip(min=0.0), dim=1)
+        return torch.sum(
+            (torch.abs(self.torques[:, self.cfg.env.joint_indices]) - self.torque_limits[self.cfg.env.joint_indices] * self.cfg.rewards.soft_torque_limit).clip(
+                min=0.0
+            ),
+            dim=1,
+        )
+
+    def _reward_dof_torque_wheel_limits(self):
+        # penalize torques too close to the limit
+        return torch.sum(
+            (torch.abs(self.torques[:, self.cfg.env.wheel_indices]) - self.torque_limits[self.cfg.env.wheel_indices] * self.cfg.rewards.soft_torque_limit).clip(
+                min=0.0
+            ),
+            dim=1,
+        )
 
     def _reward_action_rate(self):
         """
         Encourages smoothness in the robot's actions by penalizing large differences between consecutive actions.
         This is important for achieving fluid motion and reducing mechanical stress.
         """
-        term_1 = torch.sum(torch.square(self.last_actions - self.actions), dim=1)
-        term_2 = torch.sum(torch.square(self.actions + self.last_last_actions - 2.0 * self.last_actions), dim=1)
-        term_3 = 0.05 * torch.sum(torch.abs(self.actions), dim=1)
+        term_1 = torch.sum(torch.square(self.last_actions[:, self.cfg.env.joint_indices] - self.actions[:, self.cfg.env.joint_indices]), dim=1)
+        term_2 = torch.sum(
+            torch.square(
+                self.actions[:, self.cfg.env.joint_indices]
+                + self.last_last_actions[:, self.cfg.env.joint_indices]
+                - 2.0 * self.last_actions[:, self.cfg.env.joint_indices]
+            ),
+            dim=1,
+        )
+        term_3 = 0.05 * torch.sum(torch.abs(self.actions[:, self.cfg.env.joint_indices]), dim=1)
+        return term_1 + term_2 + term_3
+
+    def _reward_action_rate_wheel(self):
+        """
+        Encourages smoothness in the robot's actions by penalizing large differences between consecutive actions.
+        This is important for achieving fluid motion and reducing mechanical stress.
+        """
+        term_1 = torch.sum(torch.square(self.last_actions[:, self.cfg.env.wheel_indices] - self.actions[:, self.cfg.env.wheel_indices]), dim=1)
+        term_2 = torch.sum(
+            torch.square(
+                self.actions[:, self.cfg.env.wheel_indices]
+                + self.last_last_actions[:, self.cfg.env.wheel_indices]
+                - 2.0 * self.last_actions[:, self.cfg.env.wheel_indices]
+            ),
+            dim=1,
+        )
+        term_3 = 0.05 * torch.sum(torch.abs(self.actions[:, self.cfg.env.wheel_indices]), dim=1)
         return term_1 + term_2 + term_3
 
     def _reward_action_rate_v1(self):
@@ -778,7 +875,32 @@ class RobotSkyWQ(LeggedRobot):
         Penalizes high accelerations at the robot's degrees of freedom (DOF). This is important for ensuring
         smooth and stable motion, reducing wear on the robot's mechanical parts.
         """
-        return torch.sum(torch.square((self.actions - 2.0 * self.last_actions + self.last_last_actions)), dim=1)
+        return torch.sum(
+            torch.square(
+                (
+                    self.actions[:, self.cfg.env.joint_indices]
+                    - 2.0 * self.last_actions[:, self.cfg.env.joint_indices]
+                    + self.last_last_actions[:, self.cfg.env.joint_indices]
+                )
+            ),
+            dim=1,
+        )
+
+    def _reward_action_acc_wheel(self):
+        """
+        Penalizes high accelerations at the robot's degrees of freedom (DOF). This is important for ensuring
+        smooth and stable motion, reducing wear on the robot's mechanical parts.
+        """
+        return torch.sum(
+            torch.square(
+                (
+                    self.actions[:, self.cfg.env.wheel_indices]
+                    - 2.0 * self.last_actions[:, self.cfg.env.wheel_indices]
+                    + self.last_last_actions[:, self.cfg.env.wheel_indices]
+                )
+            ),
+            dim=1,
+        )
 
     # -- extra --
 
@@ -809,6 +931,12 @@ class RobotSkyWQ(LeggedRobot):
         contact_sum = torch.sum(contacts, dim=1)
         return contact_sum
 
+    def _reward_joint_deviation_legs(self):
+        joint_diff = self.dof_pos[:, self.cfg.env.joint_indices] - self.default_dof_pos[:, self.cfg.env.joint_indices]
+        # return torch.exp(-yaw_roll * 100) - 0.01 * torch.norm(joint_diff, dim=1)
+        # return 0.01 * torch.sum(torch.abs(joint_diff), dim=1)
+        return 0.01 * torch.norm(joint_diff, dim=1)
+
     def _reward_default_joint_pos(self):
         """
         Calculates the reward for keeping joint positions close to default positions, with a focus
@@ -834,6 +962,16 @@ class RobotSkyWQ(LeggedRobot):
         hip_indices = [0, 4, 8, 12]
         diff_hip = self.dof_pos[:, hip_indices] - self.ref_dof_pos[:, hip_indices]
         return 0.01 * torch.norm(diff_joint, dim=1) + 0.0 * torch.norm(diff_hip, dim=1)
+
+    def _reward_joint_mirror(self):
+        group_rf = [0, 1, 2]  # RF
+        group_lf = [3, 4, 5]  # LF
+        group_rb = [6, 7, 8]  # RB
+        group_lb = [9, 10, 11]  # LB
+        diff1 = torch.norm(self.dof_pos[:, self.cfg.env.joint_indices[group_rf]] + self.dof_pos[:, self.cfg.env.joint_indices[group_lb]], dim=1)
+        diff2 = torch.norm(self.dof_pos[:, self.cfg.env.joint_indices[group_lf]] + self.dof_pos[:, self.cfg.env.joint_indices[group_rb]], dim=1)
+        reward = 0.5 * (diff1 + diff2)
+        return reward
 
     # -- eth --
 
