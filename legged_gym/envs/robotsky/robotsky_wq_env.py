@@ -635,6 +635,17 @@ class RobotSkyWQ(LeggedRobot):
         ang_vel_error = torch.square(self.commands[:, 2] - self.base_ang_vel[:, 2])  # * (torch.norm(self.commands[:, 2]) > 0.1)
         return torch.exp(-ang_vel_error / self.cfg.rewards.tracking_sigma)
 
+    def _reward_tracking_lin_vel_zero(self):
+        # Tracking of linear velocity commands (xy axes)
+        lin_vel_error = torch.sum(torch.square(self.base_lin_vel[:, :2]), dim=1)  # * (torch.norm(self.commands[:, :2], dim=1) > 0.1)
+        return torch.exp(-lin_vel_error / self.cfg.rewards.tracking_sigma)
+
+    def _reward_tracking_ang_vel_zero(self):
+        # Tracking of angular velocity commands (yaw)
+        ang_vel_error = torch.square(self.base_ang_vel[:, 2])  # * (torch.norm(self.commands[:, 2]) > 0.1)
+        return torch.exp(-ang_vel_error / self.cfg.rewards.tracking_sigma)
+
+
     def _reward_tracking_lin_vel_v4(self):
         # Tracking of linear velocity commands (xy axes)
         lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)  # * (torch.norm(self.commands[:, :2], dim=1) > 0.1)
