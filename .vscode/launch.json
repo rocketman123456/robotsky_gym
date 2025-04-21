@@ -10,7 +10,7 @@
         "--task=robotsky_wq",
         "--run_name=v1",
         "--experiment_name=rs_wq_blind",
-        "--num_envs=4000",
+        "--num_envs=8000",
         // "--sim_device=cuda:0",
         // "--rl_device=cuda:0",
         // "--graphics_device_id=1",

@@ -101,7 +101,7 @@ class RobotSkyWQCfg(LeggedRobotCfg):
         max_init_terrain_level = 2  # starting curriculum state
         # terrain types: [smooth slope, rough slope, stairs up, stairs down, discrete]
         # terrain_proportions = [0.0, 0.4, 0.3, 0.3, 0.0, 0.0, 0.0]
-        terrain_proportions = [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        terrain_proportions = [0.0, 0.8, 0.1, 0.1, 0.0, 0.0, 0.0]
         # trimesh only:
         # slopes above this threshold will be corrected to vertical surfaces
         slope_treshold = 0.75
@@ -119,7 +119,7 @@ class RobotSkyWQCfg(LeggedRobotCfg):
             height_measurements = 0.1
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.60]
+        pos = [0.0, 0.0, 0.50]
         default_joint_angles = {  # = target angles [rad] when action = 0.0
             "RF_Roll_Joint": 0.1,
             "RF_Hip_Joint": -0.5,
@@ -272,7 +272,7 @@ class RobotSkyWQCfg(LeggedRobotCfg):
         target_feet_height = 0.15
         soft_dof_pos_limit = 0.95
         soft_dof_vel_limit = 0.95
-        soft_torque_limit = 0.99
+        soft_torque_limit = 0.90
         max_contact_force = 150.0
         target_joint_pos_scale = 0.2
         only_positive_rewards = False
@@ -386,11 +386,9 @@ class RobotSkyWQCfg(LeggedRobotCfg):
 
             # -- vel tracking --
             # tracking_lin_vel_eth = 1.0
-            tracking_lin_vel_body = 1.0
-            # tracking_lin_vel = 1.0  # 1.0  # 2.0
-            tracking_ang_vel = 1.0  # 0.5  # 1.0
-            # tracking_lin_vel_v4 = -1.0
-            # tracking_ang_vel_v4 = -1.0
+            tracking_lin_vel_body = 2.0  # 1.0
+            # tracking_lin_vel = 1.0  # 2.0
+            tracking_ang_vel = 2.0  # 1.0  # 0.5
             # low_speed = 0.5
 
             # -- gait --
@@ -406,10 +404,10 @@ class RobotSkyWQCfg(LeggedRobotCfg):
             # barrier_gait_hl = 0.2
             # barrier_gait_hr = 0.2
 
-            no_fly = 0.05  # 0.1  # 0.05
+            no_fly = 0.02  # 0.05  # 0.1
             # no_fly_v1 = -0.1  # -0.2
             # no_fly_v2 = 0.1  # 0.2  # 0.1
-            # no_fly_v3 = 0.1
+            no_fly_v3 = 0.1
             feet_stumble = -0.02  # -0.05
             # feet_clearance_v1 = -0.1  # -0.05  # -0.2
             # foot_slip = -0.1
@@ -432,7 +430,7 @@ class RobotSkyWQCfg(LeggedRobotCfg):
             # -- base pos --
             orientation = -10.0  # -5.0  # -2.0  # -1.0
             upward = -0.02
-            base_height = -5.0  # -2.0
+            base_height = -2.0  # -5.0  # -2.0
             ang_vel_xy = -0.05  # -0.1
             lin_vel_z = -1.0  # -2.0
             base_acc = 0.2  # 0.5
@@ -443,23 +441,22 @@ class RobotSkyWQCfg(LeggedRobotCfg):
             dof_vel_wheel_limits = -2.0
             dof_torque_limits = -1.0  # -0.5
             dof_torque_wheel_limits = -1.0  # -0.05
-
             # -- energy --
-            dof_acc = -1.0e-7  # -1.0e-8
+            dof_acc = -2.0e-7  # -1.0e-7  # -1.0e-8
             dof_acc_wheel = -1.0e-7  # -1.0e-8
             dof_vel = -2.0e-4  # -1.0e-4
             dof_vel_wheel = -1.0e-5
             torques = -1.0e-4  # -5.0e-5
             torques_wheel = -5.0e-1  # -2.0e-1
-            action_rate = -1.0e-3  # -2.0e-4
+            action_rate = -2.0e-3  # -1.0e-3  # -2.0e-4
             action_rate_wheel = -5.0e-5
-            action_acc = -5.0e-3  # -1.0e-3
+            action_acc = -1.0e-2  # -5.0e-3  # -1.0e-3
             action_acc_wheel = -1.0e-4
             energy_expenditure = -5.0e-4  # -2.0e-4
 
             # -- extra --
             joint_deviation_legs = -2.0  # -1.0
-            joint_mirror = -1.0
+            joint_mirror = -0.1  # -1.0
             # default_joint_pos = -4.0  # -2.0  # -1.0  # 0.5
             # hip_default_joint_pos = -2.0  # -10.0  # -5.0
             # default_joint_pos_v2 = -1.0  # -0.5  # -1.0  # -5.0
@@ -489,7 +486,7 @@ class RobotSkyWQCfgPPO(LeggedRobotCfgPPO):
 
     class algorithm(LeggedRobotCfgPPO.algorithm):
         # training params
-        entropy_coef = 0.001  # 0.01  # 0.005
+        entropy_coef = 0.002  # 0.01  # 0.005
         schedule = "adaptive"  # could be adaptive, fixed
         multi_critics = RobotSkyWQCfg.env.multi_critics
         enable_dagger = RobotSkyWQCfg.env.dagger
