@@ -1,8 +1,11 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2021-2025, ETH Zurich and NVIDIA CORPORATION
+# All rights reserved.
+#
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) 2021 ETH Zurich, Nikita Rudin
 
+"""Implementation of different RL agents."""
+
+from .distillation import Distillation
 from .ppo import PPO
-from .ppo_multi_critic import PPOMultiCritic
-from .ppo_dagger import PPODagger
-from .ppo_dagger_multi_critic import PPODaggerMultiCritic
+
+__all__ = ["PPO", "Distillation"]

@@ -1,7 +1,7 @@
-__pycache__/*
-**.pyc
-*.egg-info/*
-logs/
-wandb/
-.DS_Store
-.vscode/settings.json
+*.egg-info
+*.pyc
+.vscode
+outputs
+logs
+run_bash.sh
+wandb

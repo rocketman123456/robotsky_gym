@@ -1,6 +1,10 @@
-# SPDX-FileCopyrightText: Copyright (c) 2021 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2021-2025, ETH Zurich and NVIDIA CORPORATION
+# All rights reserved.
+#
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright (c) 2021 ETH Zurich, Nikita Rudin
+
+"""Implementation of runners for environment-agent interaction."""
 
 from .on_policy_runner import OnPolicyRunner
-from .on_policy_runner_dagger import OnPolicyRunnerDagger
+
+__all__ = ["OnPolicyRunner"]
