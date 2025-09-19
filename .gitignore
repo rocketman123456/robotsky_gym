@@ -1,4 +1,5 @@
-records
 __pycache__
+*.egg-info
 .vscode
+records
 logs
