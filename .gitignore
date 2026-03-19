@@ -1,6 +1,6 @@
 __pycache__/*
 **.pyc
-*.egg-info/*
+*.egg-info
 logs/
 wandb/
 .DS_Store

@@ -1,0 +1,153 @@
+<mujoco model="srobot">
+  <compiler angle="radian" meshdir="../meshes/" />
+  <statistic meansize="0.3" extent="0.887404" center="0.000281117 -0.00176132 -0.134159" />
+  <option timestep="0.002" integrator="RK4" />
+  <asset>
+    <mesh name="base_link" file="base_link.STL" />
+
+    <mesh name="LeftHipYaw_Link" file="LeftHipYaw_Link.STL" />
+    <mesh name="LeftHipRoll_Link" file="LeftHipRoll_Link.STL" />
+    <mesh name="LeftHipPitch_Link" file="LeftHipPitch_Link.STL" />
+    <mesh name="LeftKnee_Link" file="LeftKnee_Link.STL" />
+    <mesh name="LeftAnkle_Link" file="LeftAnkle_Link.STL" />
+
+    <mesh name="RightHipYaw_Link" file="RightHipYaw_Link.STL" />
+    <mesh name="RightHipRoll_Link" file="RightHipRoll_Link.STL" />
+    <mesh name="RightHipPitch_Link" file="RightHipPitch_Link.STL" />
+    <mesh name="RightKnee_Link" file="RightKnee_Link.STL" />
+    <mesh name="RightAnkle_Link" file="RightAnkle_Link.STL" />
+
+    <texture name="grid" type="2d" builtin="checker" rgb1=".1 .2 .3" rgb2=".2 .3 .4" width="300"
+      height="300" />
+    <material name="grid" texture="grid" texrepeat="8 8" reflectance=".1" />
+  </asset>
+  <default>
+    <geom contype="0" conaffinity="0" />
+  </default>
+  <worldbody>
+    <light name="top" pos="0 0 10" castshadow="false" />
+    <geom size="10 10 .01" type="plane" pos="0 0 0" material="grid" contype="1" conaffinity="1" />
+
+    <body name="Base_Link" pos="0 0 0.80">
+      <freejoint />
+      <inertial pos="0 0 0.0516" quat="0 0 0 1" mass="3.953" diaginertia="0.05075 0.020650 0.03991" />
+      <geom type="mesh" contype="1" conaffinity="1" rgba="1 1 1 1" mesh="base_link" />
+      <site name="imu" pos="0 0 0" />
+      <body name="LeftHipYaw_Link" pos="0 0.08 0">
+        <inertial pos="-0.060922 -9.4557e-05 0.011012" quat="0.973063 5.90255e-05 0.230505 -0.00405378" mass="0.44642" diaginertia="0.000619685 0.000521715 0.00024053"/>
+        <joint name="LeftHipYaw_Joint" pos="0 0 0" axis="0 0 1" limited="true" range="-1.047 1.047" />
+        <!-- <geom type="mesh" rgba="1 1 1 1" mesh="LeftHipYaw_Link" /> -->
+        <body name="LeftHipRoll_Link" pos="0 0 -0.075002">
+          <inertial pos="-0.0042849 0.0019858 0.00027606" quat="0.496338 0.48888 0.505443 0.509089" mass="0.39533" diaginertia="0.000337382 0.000226123 0.000185515"/>
+          <joint name="LeftHipRoll_Joint" pos="0 0 0" axis="1 0 0" limited="true" range="-0.785 0.785" />
+          <!-- <geom type="mesh" rgba="1 1 1 1" mesh="LeftHipRoll_Link" /> -->
+          <body name="LeftHipPitch_Link" pos="0 0 0">
+            <inertial pos="0.0048561 -0.0056835 -0.16396" quat="0.648448 0.0298338 0.00339254 0.760666" mass="0.54469" diaginertia="0.00311894 0.00293698 0.000323608"/>
+            <joint name="LeftHipPitch_Joint" pos="0 0 0" axis="0 1 0" limited="true" range="-1.571 0.087" />
+            <geom type="mesh" rgba="1 1 1 1" mesh="LeftHipPitch_Link" />
+            <body name="LeftKnee_Link" pos="0.00020364 0 -0.21">
+              <inertial pos="-0.0012025 0.0014243 -0.10846" quat="0.705229 -0.0210038 0.0125226 0.708558" mass="0.50869" diaginertia="0.00101657 0.000877556 0.000274325"/>
+              <joint name="LeftKnee_Joint" pos="0 0 0" axis="0 1 0" limited="true" range="-0.087 2.618" />
+              <!-- <geom type="mesh" rgba="1 1 1 1" mesh="LeftKnee_Link" /> -->
+              <geom size="0.02 0.05" pos="0 0 -0.12" type="cylinder" rgba="0.89804 0.91765 0.92941 1"/>
+              <body name="LeftAnkle_Link" pos="0 0 -0.21">
+                <inertial pos="0.010557 0.00021294 -0.022631" quat="-0.0058027 0.728297 -0.0110471 0.685149" mass="0.1402" diaginertia="0.000247388 0.000235662 4.33164e-05"/>
+                <joint name="LeftAnkle_Joint" pos="0 0 0" axis="0 1 0" limited="true" range="-1.571 1.571" />
+                <geom type="mesh" contype="1" conaffinity="1" rgba="1 1 1 1" mesh="LeftAnkle_Link" condim="4" />
+                <!-- <geom type="box" size="0.1 0.02 0.02" pos="0 0 -0.01" rgba="1 1 1 1"
+                contype="1" conaffinity="1" condim="4" /> -->
+                <site name="LeftEndSite" pos="0 0 0" />
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="RightHipYaw_Link" pos="0 -0.08 0">
+        <inertial pos="-0.060922 9.4554e-05 0.011012" quat="0.973065 -5.89403e-05 0.230497 0.0040538" mass="0.44642" diaginertia="0.000619677 0.000521715 0.000240538"/>
+        <joint name="RightHipYaw_Joint" pos="0 0 0" axis="0 0 1" limited="true" range="-1.047 1.047" />
+        <!-- <geom type="mesh" rgba="1 1 1 1" mesh="RightHipYaw_Link" /> -->
+        <body name="RightHipRoll_Link" pos="0 0 -0.075002">
+          <inertial pos="-0.0042849 -0.0019858 0.00027605" quat="0.509092 0.50544 0.488877 0.496342" mass="0.39533" diaginertia="0.000337382 0.000226123 0.000185515"/>
+          <joint name="RightHipRoll_Joint" pos="0 0 0" axis="1 0 0" limited="true" range="-0.785 0.785" />
+          <!-- <geom type="mesh" rgba="1 1 1 1" mesh="RightHipRoll_Link" /> -->
+          <body name="RightHipPitch_Link" pos="0 0 0">
+            <inertial pos="0.0048561 0.0056835 -0.16396" quat="0.760666 0.00339254 0.0298338 0.648448" mass="0.54469" diaginertia="0.00311894 0.00293698 0.000323608"/>
+            <joint name="RightHipPitch_Joint" pos="0 0 0" axis="0 1 0" limited="true" range="-1.571 0.087" />
+            <geom type="mesh" rgba="1 1 1 1" mesh="RightHipPitch_Link" />
+            <body name="RightKnee_Link" pos="0.00020364 0 -0.21">
+              <inertial pos="-0.0012024 -0.0014243 -0.10846" quat="0.708558 0.0125227 -0.0210037 0.705228" mass="0.50869" diaginertia="0.00101657 0.000877556 0.000274325"/>
+              <joint name="RightKnee_Joint" pos="0 0 0" axis="0 1 0" limited="true" range="-0.087 2.618" />
+              <geom size="0.02 0.05" pos="0 0 -0.12" type="cylinder" rgba="0.89804 0.91765 0.92941 1"/>
+              <!-- <geom type="mesh" rgba="1 1 1 1" mesh="RightKnee_Link" /> -->
+              <body name="RightAnkle_Link" pos="0 0 -0.21">
+                <inertial pos="0.010557 -0.00021294 -0.022631" quat="0.00580329 0.728293 0.0110476 0.685152" mass="0.1402" diaginertia="0.000247388 0.000235662 4.33167e-05"/>
+                <joint name="RightAnkle_Joint" pos="0 0 0" axis="0 1 0" limited="true" range="-1.571 1.571" />
+                <geom type="mesh" contype="1" conaffinity="1" rgba="1 1 1 1" mesh="RightAnkle_Link" condim="4" />
+                <!-- <geom type="box" size="0.1 0.02 0.02" pos="0 0 -0.01" rgba="1 1 1 1"
+                contype="1" conaffinity="1" condim="4" /> -->
+                <site name="RightEndSite" pos="0 0 0" />
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <actuator>
+    <!-- <motor name="LeftHipYaw" gear="1" joint="LeftHipYaw_Joint" />
+    <motor name="LeftHipRoll" gear="1" joint="LeftHipRoll_Joint" />
+    <motor name="LeftHipPitch" gear="1" joint="LeftHipPitch_Joint" />
+    <motor name="LeftKnee" gear="1" joint="LeftKnee_Joint" />
+    <motor name="LeftAnkle" gear="1" joint="LeftAnkle_Joint" />
+    <motor name="RightHipYaw" gear="1" joint="RightHipYaw_Joint" />
+    <motor name="RightHipRoll" gear="1" joint="RightHipRoll_Joint" />
+    <motor name="RightHipPitch" gear="1" joint="RightHipPitch_Joint" />
+    <motor name="RightKnee" gear="1" joint="RightKnee_Joint" />
+    <motor name="RightAnkle" gear="1" joint="RightAnkle_Joint" /> -->
+    <position name="LeftHipYaw" joint="LeftHipYaw_Joint" kp="15.0" kv="0.5" />
+    <position name="LeftHipRoll" joint="LeftHipRoll_Joint" kp="15.0" kv="0.5" />
+    <position name="LeftHipPitch" joint="LeftHipPitch_Joint" kp="15.0" kv="0.5" />
+    <position name="LeftKnee" joint="LeftKnee_Joint" kp="15.0" kv="0.5" />
+    <position name="LeftAnkle" joint="LeftKnee_Joint" kp="10.0" kv="0.5" />
+    <position name="RightHipYaw" joint="RightHipYaw_Joint" kp="15.0" kv="0.5" />
+    <position name="RightHipRoll" joint="RightHipRoll_Joint" kp="15.0" kv="0.5" />
+    <position name="RightHipPitch" joint="RightHipPitch_Joint" kp="15.0" kv="0.5" />
+    <position name="RightKnee" joint="RightKnee_Joint" kp="15.0" kv="0.5" />
+    <position name="RightAnkle" joint="RightKnee_Joint" kp="10.0" kv="0.5" />
+  </actuator>
+  <sensor>
+    <jointpos name="LeftHipYaw_pos" joint="LeftHipYaw_Joint" />
+    <jointpos name="LeftHipRoll_pos" joint="LeftHipRoll_Joint" />
+    <jointpos name="LeftHipPitch_pos" joint="LeftHipPitch_Joint" />
+    <jointpos name="LeftKnee_pos" joint="LeftKnee_Joint" />
+    <jointpos name="LeftAnkle_pos" joint="LeftAnkle_Joint" />
+    <jointpos name="RightHipYaw_pos" joint="RightHipYaw_Joint" />
+    <jointpos name="RightHipRoll_pos" joint="RightHipRoll_Joint" />
+    <jointpos name="RightHipPitch_pos" joint="RightHipPitch_Joint" />
+    <jointpos name="RightKnee_pos" joint="RightKnee_Joint" />
+    <jointpos name="RightAnkle_pos" joint="RightAnkle_Joint" />
+
+    <jointvel name="LeftHipYaw_vel" joint="LeftHipYaw_Joint" />
+    <jointvel name="LeftHipRoll_vel" joint="LeftHipRoll_Joint" />
+    <jointvel name="LeftHipPitch_vel" joint="LeftHipPitch_Joint" />
+    <jointvel name="LeftKnee_vel" joint="LeftKnee_Joint" />
+    <jointvel name="LeftAnkle_vel" joint="LeftAnkle_Joint" />
+    <jointvel name="RightHipYaw_vel" joint="RightHipYaw_Joint" />
+    <jointvel name="RightHipRoll_vel" joint="RightHipRoll_Joint" />
+    <jointvel name="RightHipPitch_vel" joint="RightHipPitch_Joint" />
+    <jointvel name="RightKnee_vel" joint="RightKnee_Joint" />
+    <jointvel name="RightAnkle_vel" joint="RightAnkle_Joint" />
+
+    <accelerometer name="BodyAcc" site="imu" />
+    <velocimeter name="BodyVel" site="imu" />
+    <gyro name="BodyGyro" site="imu" />
+    <framepos name="BodyPos" objtype="site" objname="imu" />
+    <framequat name="BodyQuat" objtype="site" objname="imu" />
+    <framepos name="LeftEndPos" objtype="site" objname="LeftEndSite" />
+    <framepos name="RightEndPos" objtype="site" objname="RightEndSite" />
+  </sensor>
+  <keyframe>
+    <key name="home" qpos="0 0 0.50 1 0 0 0 0.0 0.0 -0.5 1.0 -0.5 0.0 0.0 -0.5 1.0 -0.5"
+      ctrl="0 0 0 0 0 0 0 0 0 0" />
+  </keyframe>
+</mujoco>

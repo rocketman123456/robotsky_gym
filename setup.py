@@ -1,23 +1,26 @@
-from setuptools import find_packages
+# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
+# All rights reserved.
+# Original code is licensed under BSD-3-Clause.
+#
+# Copyright (c) 2025-2026, The Legged Lab Project Developers.
+# All rights reserved.
+# Modifications are licensed under BSD-3-Clause.
+#
+# This file contains code derived from Isaac Lab Project (BSD-3-Clause license)
+# with modifications by Legged Lab Project (BSD-3-Clause license).
+
 from distutils.core import setup
 
+from setuptools import find_packages
+
 setup(
-    name='legged_gym',
-    version='1.0.0',
-    author='Xinyang Gu, Yen-Jen Wang, Jianyu Chen',
-    license="BSD-3-Clause",
+    name="LeggedLab",
     packages=find_packages(),
-    author_email='zlw21gxy@gmail.com, wangyenjen@berkeley.edu, jianyuchen@tsinghua.edu.cn',
-    description='Isaac Gym environments for humanoid robot',
+    version="1.0.0",
     install_requires=[
-        'isaacgym',  # preview4
-        'wandb',
-        'tensorboard',
-        'tqdm',
-        'numpy==1.23.5',
-        'opencv-python',
-        'mujoco==2.3.6',
-        'mujoco-python-viewer',
-        'matplotlib'
-    ]
+        # 'isaacsim',
+        "IsaacLab",
+        # "rsl-rl-lib>=2.3.0",
+        "tensordict",
+    ],
 )

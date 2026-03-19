@@ -1,0 +1,110 @@
+<mujoco model="robotsky_wq">
+  <compiler angle="radian" autolimits="true"/>
+  <statistic meansize="0.105494" extent="0.640936" center="0 0 0.0535"/>
+  <asset>
+    <mesh name="base_link" file="base_link.STL"/>
+    <mesh name="RF_Roll_Link" file="RF_Roll_Link.STL"/>
+    <mesh name="RF_Hip_Link" file="RF_Hip_Link.STL"/>
+    <mesh name="RF_Knee_Link" file="RF_Knee_Link.STL"/>
+    <mesh name="RF_Wheel_Link" file="RF_Wheel_Link.STL"/>
+    <mesh name="LF_Roll_Link" file="LF_Roll_Link.STL"/>
+    <mesh name="LF_Hip_Link" file="LF_Hip_Link.STL"/>
+    <mesh name="LF_Knee_Link" file="LF_Knee_Link.STL"/>
+    <mesh name="LF_Wheel_Link" file="LF_Wheel_Link.STL"/>
+    <mesh name="RB_Roll_Link" file="RB_Roll_Link.STL"/>
+    <mesh name="RB_Hip_Link" file="RB_Hip_Link.STL"/>
+    <mesh name="RB_Knee_Link" file="RB_Knee_Link.STL"/>
+    <mesh name="RB_Wheel_Link" file="RB_Wheel_Link.STL"/>
+    <mesh name="LB_Roll_Link" file="LB_Roll_Link.STL"/>
+    <mesh name="LB_Hip_Link" file="LB_Hip_Link.STL"/>
+    <mesh name="LB_Knee_Link" file="LB_Knee_Link.STL"/>
+    <mesh name="LB_Wheel_Link" file="LB_Wheel_Link.STL"/>
+  </asset>
+  <worldbody>
+    <body name="base_link">
+      <inertial pos="0 0 0.0535" quat="0.5 0.5 0.5 0.5" mass="12.2741" diaginertia="0.155787 0.147821 0.0643368"/>
+      <joint name="base_link_free_joint" type="free"/>
+      <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="base_link"/>
+      <body name="RF_Roll_Link">
+        <inertial pos="0.213 -0.0605 0" quat="0.707107 0.707107 0 0" mass="0.351377" diaginertia="0.000147513 0.000147513 0.000142703"/>
+        <joint name="RF_Roll_Joint" pos="0 0 0" axis="1 0 0" range="-10 10"/>
+        <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="RF_Roll_Link"/>
+        <body name="RF_Hip_Link" pos="0.213 -0.06 0">
+          <inertial pos="-0.08 -0.0655 0" quat="0.5 0.5 0.5 0.5" mass="0.2576" diaginertia="0.000583893 0.000575843 6.06433e-05"/>
+          <joint name="RF_Hip_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+          <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="RF_Hip_Link"/>
+          <body name="RF_Knee_Link" pos="-0.16 -0.0655 0">
+            <inertial pos="0.08 -0.04 0" quat="0.5 0.5 0.5 0.5" mass="0.10488" diaginertia="0.00023161 0.000226899 1.10211e-05"/>
+            <joint name="RF_Knee_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+            <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="RF_Knee_Link"/>
+            <body name="RF_Wheel_Link" pos="0.16 -0.04 0">
+              <inertial pos="0 -0.043 0" quat="0.707107 0 0 0.707107" mass="0.630871" diaginertia="0.00177432 0.000951564 0.000951564"/>
+              <joint name="RF_Wheel_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+              <geom type="mesh" rgba="1 1 1 1" mesh="RF_Wheel_Link"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="LF_Roll_Link" pos="0.213 0.06 0">
+        <inertial pos="0 0.0005 0" quat="0.707107 0.707107 0 0" mass="0.351377" diaginertia="0.000147513 0.000147513 0.000142703"/>
+        <joint name="LF_Roll_Joint" pos="0 0 0" axis="1 0 0" range="-10 10"/>
+        <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="LF_Roll_Link"/>
+        <body name="LF_Hip_Link">
+          <inertial pos="-0.08 0.0655 0" quat="0.5 0.5 0.5 0.5" mass="0.2576" diaginertia="0.000583893 0.000575843 6.06433e-05"/>
+          <joint name="LF_Hip_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+          <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="LF_Hip_Link"/>
+          <body name="LF_Knee_Link" pos="-0.16 0.0655 0">
+            <inertial pos="0.08 0.04 0" quat="0.5 0.5 0.5 0.5" mass="0.10488" diaginertia="0.00023161 0.000226899 1.10211e-05"/>
+            <joint name="LF_Knee_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+            <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="LF_Knee_Link"/>
+            <body name="LF_Wheel_Link" pos="0.16 0.04 0">
+              <inertial pos="0 0.043 0" quat="0.707107 0 0 0.707107" mass="0.630871" diaginertia="0.00177432 0.000951564 0.000951564"/>
+              <joint name="LF_Wheel_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+              <geom type="mesh" rgba="1 1 1 1" mesh="LF_Wheel_Link"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="RB_Roll_Link" pos="-0.213 -0.06 0">
+        <inertial pos="0 -0.0005 0" quat="0.707107 0.707107 0 0" mass="0.351377" diaginertia="0.000147513 0.000147513 0.000142703"/>
+        <joint name="RB_Roll_Joint" pos="0 0 0" axis="1 0 0" range="-10 10"/>
+        <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="RB_Roll_Link"/>
+        <body name="RB_Hip_Link">
+          <inertial pos="0.08 -0.0655 0" quat="0.5 0.5 0.5 0.5" mass="0.2576" diaginertia="0.000583893 0.000575843 6.06433e-05"/>
+          <joint name="RB_Hip_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+          <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="RB_Hip_Link"/>
+          <body name="RB_Knee_Link" pos="0.16 -0.0655 0">
+            <inertial pos="-0.08 -0.04 0" quat="0.5 0.5 0.5 0.5" mass="0.10488" diaginertia="0.00023161 0.000226899 1.10211e-05"/>
+            <joint name="RB_Knee_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+            <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="RB_Knee_Link"/>
+            <body name="RB_Wheel_Link" pos="-0.16 -0.04 0">
+              <inertial pos="0 -0.043 0" quat="0.707107 0 0 0.707107" mass="0.630871" diaginertia="0.00177432 0.000951564 0.000951564"/>
+              <joint name="RB_Wheel_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+              <geom type="mesh" rgba="1 1 1 1" mesh="RB_Wheel_Link"/>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="LB_Roll_Link" pos="-0.213 0.06 0">
+        <inertial pos="0 0.0005 0" quat="0.707107 0.707107 0 0" mass="0.351377" diaginertia="0.000147513 0.000147513 0.000142703"/>
+        <joint name="LB_Roll_Joint" pos="0 0 0" axis="1 0 0" range="-10 10"/>
+        <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="LB_Roll_Link"/>
+        <body name="LB_Hip_Link">
+          <inertial pos="0.08 0.0655 0" quat="0.5 0.5 0.5 0.5" mass="0.2576" diaginertia="0.000583893 0.000575843 6.06433e-05"/>
+          <joint name="LB_Hip_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+          <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="LB_Hip_Link"/>
+          <body name="LB_Knee_Link" pos="0.16 0.0655 0">
+            <inertial pos="-0.08 0.04 0" quat="0.5 0.5 0.5 0.5" mass="0.10488" diaginertia="0.00023161 0.000226899 1.10211e-05"/>
+            <joint name="LB_Knee_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+            <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="LB_Knee_Link"/>
+            <body name="LB_Wheel_Link" pos="-0.16 0.04 0">
+              <inertial pos="0 0.043 0" quat="0.707107 0 0 0.707107" mass="0.630871" diaginertia="0.00177432 0.000951564 0.000951564"/>
+              <joint name="LB_Wheel_Joint" pos="0 0 0" axis="0 1 0"/>
+              <geom type="mesh" rgba="1 1 1 1" mesh="LB_Wheel_Link"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>
