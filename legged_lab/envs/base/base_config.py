@@ -69,6 +69,10 @@ class ObsScalesCfg:
     commands: float = 1.0
     joint_pos: float = 1.0
     joint_vel: float = 1.0
+    # Separate scale for wheel joint velocities (wheel-legged robots only).
+    # Wheels can spin much faster than leg joints, so a smaller value (e.g. 0.1)
+    # keeps wheel-vel obs in a similar range to leg-vel obs.
+    wheel_vel: float = 1.0
     actions: float = 1.0
     height_scan: float = 1.0
 

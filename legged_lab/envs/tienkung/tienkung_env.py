@@ -40,7 +40,6 @@ from legged_lab.envs.tienkung.walk_with_sensor_cfg import (
 )
 from legged_lab.utils.env_utils.scene import SceneCfg
 from rsl_rl.env import VecEnv
-from rsl_rl.utils import AMPLoaderDisplay
 
 
 class TienKungEnv(VecEnv):
@@ -120,6 +119,7 @@ class TienKungEnv(VecEnv):
             self.event_manager.apply(mode="startup")
         self.reset(env_ids)
 
+        from rsl_rl.utils import AMPLoaderDisplay  # deferred: requires AMP-extended rsl_rl
         self.amp_loader_display = AMPLoaderDisplay(
             motion_files=self.cfg.amp_motion_files_display, device=self.device, time_between_frames=self.physics_dt
         )

@@ -44,6 +44,13 @@ from legged_lab.envs.tienkung.walk_with_sensor_cfg import (
     TienKungWalkWithSensorAgentCfg,
     TienKungWalkWithSensorFlatEnvCfg,
 )
+from legged_lab.envs.robotsky.robotsky_wq_config import (
+    RobotSkyWQFlatAgentCfg,
+    RobotSkyWQFlatEnvCfg,
+    RobotSkyWQRoughAgentCfg,
+    RobotSkyWQRoughEnvCfg,
+)
+from legged_lab.envs.robotsky.robotsky_wq_env import RobotSkyWQEnv
 from legged_lab.utils.task_registry import task_registry
 
 task_registry.register("h1_flat", BaseEnv, H1FlatEnvCfg(), H1FlatAgentCfg())
@@ -54,9 +61,7 @@ task_registry.register("gr2_flat", BaseEnv, GR2FlatEnvCfg(), GR2FlatAgentCfg())
 task_registry.register("gr2_rough", BaseEnv, GR2RoughEnvCfg(), GR2RoughAgentCfg())
 task_registry.register("tienkung_walk", TienKungEnv, TienKungWalkFlatEnvCfg(), TienKungWalkAgentCfg())
 task_registry.register("tienkung_run", TienKungEnv, TienKungRunFlatEnvCfg(), TienKungRunAgentCfg())
-task_registry.register(
-    "tienkung_walk_with_sensor", TienKungEnv, TienKungWalkWithSensorFlatEnvCfg(), TienKungWalkWithSensorAgentCfg()
-)
-task_registry.register(
-    "tienkung_run_with_sensor", TienKungEnv, TienKungRunWithSensorFlatEnvCfg(), TienKungRunWithSensorAgentCfg()
-)
+task_registry.register("tienkung_walk_with_sensor", TienKungEnv, TienKungWalkWithSensorFlatEnvCfg(), TienKungWalkWithSensorAgentCfg())
+task_registry.register("tienkung_run_with_sensor", TienKungEnv, TienKungRunWithSensorFlatEnvCfg(), TienKungRunWithSensorAgentCfg())
+task_registry.register("robotsky_wq_flat", RobotSkyWQEnv, RobotSkyWQFlatEnvCfg(), RobotSkyWQFlatAgentCfg())
+task_registry.register("robotsky_wq_rough", RobotSkyWQEnv, RobotSkyWQRoughEnvCfg(), RobotSkyWQRoughAgentCfg())
