@@ -14,7 +14,7 @@ from distutils.core import setup
 from setuptools import find_packages
 
 setup(
-    name="LeggedLab",
+    name="robotsky_lab",
     packages=find_packages(),
     version="1.0.0",
     install_requires=[
