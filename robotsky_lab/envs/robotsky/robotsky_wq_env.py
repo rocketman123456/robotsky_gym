@@ -44,6 +44,49 @@ class RobotSkyWQEnv(BaseEnv):
         self.leg_joint_ids: list = [i for i in range(num_joints) if i not in self.wheel_joint_ids]
         self.wheel_action_scale: float = self.cfg.robot.wheel_action_scale
 
+        self.rf_leg_ids, _ = self.robot.find_joints(
+            name_keys=[
+                "RF_Roll_Joint",
+                "RF_Hip_Joint",
+                "RF_Knee_Joint",
+                "RF_Wheel_Joint",
+            ],
+            preserve_order=True,
+        )
+        self.lf_leg_ids, _ = self.robot.find_joints(
+            name_keys=[
+                "LF_Roll_Joint",
+                "LF_Hip_Joint",
+                "LF_Knee_Joint",
+                "LF_Wheel_Joint",
+            ],
+            preserve_order=True,
+        )
+        self.rb_leg_ids, _ = self.robot.find_joints(
+            name_keys=[
+                "RB_Roll_Joint",
+                "RB_Hip_Joint",
+                "RB_Knee_Joint",
+                "RB_Wheel_Joint",
+            ],
+            preserve_order=True,
+        )
+        self.lb_leg_ids, _ = self.robot.find_joints(
+            name_keys=[
+                "LB_Roll_Joint",
+                "LB_Hip_Joint",
+                "LB_Knee_Joint",
+                "LB_Wheel_Joint",
+            ],
+            preserve_order=True,
+        )
+        self.joint_names = self.robot.data.joint_names
+        print(f"Joint names: {self.joint_names}")
+        self.isaac2urdf_idx = self.rf_leg_ids + self.lf_leg_ids + self.rb_leg_ids + self.lb_leg_ids
+        self.urdf2isaac_idx = [self.isaac2urdf_idx.index(i) for i in range(len(self.joint_names))]
+        print(f"ISAAC to URDF indices: {self.isaac2urdf_idx}")
+        print(f"URDF to ISAAC indices: {self.urdf2isaac_idx}")
+
         super().init_buffers()
 
     def init_obs_buffer(self):
