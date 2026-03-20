@@ -2,6 +2,8 @@
 # All rights reserved.
 # Modifications are licensed under BSD-3-Clause.
 
+import math
+
 import torch
 from isaaclab.managers.scene_entity_cfg import SceneEntityCfg
 
@@ -103,9 +105,7 @@ class RobotSkyWQEnv(BaseEnv):
             # 2. Patch wheel velocity noise to use the wheel_vel obs_scale
             #    (base class applied joint_vel scale uniformly for all joint_vel entries)
             joint_vel_start = 9 + self.num_actions
-            self.noise_scale_vec[joint_vel_start + wheel_ids_t] = (
-                noise_scales.joint_vel * self.obs_scales.wheel_vel
-            )
+            self.noise_scale_vec[joint_vel_start + wheel_ids_t] = noise_scales.joint_vel * self.obs_scales.wheel_vel
 
     # ------------------------------------------------------------------
     # Observation
@@ -155,12 +155,75 @@ class RobotSkyWQEnv(BaseEnv):
         return current_actor_obs, current_critic_obs
 
     # ------------------------------------------------------------------
+    # 对角 trot：在裁剪后的全关节 action 上对腿关节叠加正弦（开环辅助抬脚）
+    # ------------------------------------------------------------------
+
+    def _apply_diagonal_trot_overlay(self, clipped_actions: torch.Tensor) -> torch.Tensor:
+        """在策略输出上叠加对角 trot 正弦；不改变观测中的 action（buffer 仍为原策略输出）。
+
+        假定 command 布局为 UniformVelocityCommand: [vx, vy, wz]（机体系线速度 + 绕竖轴角速度）。
+        """
+        cfg = self.cfg.robot.diagonal_trot
+        if not cfg.enable:
+            return clipped_actions
+
+        cmd = self.command_generator.command
+        vx, vy, wz = cmd[:, 0], cmd[:, 1], cmd[:, 2]
+        v_xy = torch.sqrt(vx * vx + vy * vy + 1e-9)
+
+        # 门控：静止/微指令时不叠加；侧移、前进、转圈均通过 v_xy 或 wz 打开
+        cmd_drive = v_xy + cfg.wz_cmd_weight * torch.abs(wz)
+        gate = torch.clamp((cmd_drive - cfg.cmd_deadband) / max(cfg.cmd_blend, 1e-6), 0.0, 1.0)
+
+        # 周期：speed_blend 越大 period 越短（步频越高）；饱和映射避免数值发散
+        speed_blend = v_xy / max(cfg.speed_ref, 1e-6) + torch.abs(wz) / max(cfg.ang_ref, 1e-6)
+        speed_blend = torch.clamp(speed_blend, 0.0, 20.0)
+        period = cfg.period_max_s - (cfg.period_max_s - cfg.period_min_s) * (speed_blend / (1.0 + speed_blend))
+        # 相位：按控制步长积分等价写法；reset 后 episode_length_buf=0 相位归零
+        phase = 2.0 * math.pi * self.episode_length_buf.to(dtype=torch.float32, device=self.device) * self.step_dt
+        phase = phase / period
+        s_a = torch.sin(phase).clamp(0.0, 1.0) * gate
+        s_b = -s_a  # 另一对角组，相差 π
+
+        overlay = torch.zeros_like(clipped_actions)
+        amps = (cfg.roll_amp, cfg.hip_amp, cfg.knee_amp)
+        # rf_leg_ids 等前 3 项为 Roll/Hip/Knee，第 4 项为轮关节，此处只写腿关节索引
+        # for i in range(3):
+        #     overlay[:, self.rf_leg_ids[i]] += amps[i] * s_a
+        #     overlay[:, self.lb_leg_ids[i]] += amps[i] * s_a
+        #     overlay[:, self.lf_leg_ids[i]] += amps[i] * s_b
+        #     overlay[:, self.rb_leg_ids[i]] += amps[i] * s_b
+
+        # roll
+        overlay[:, self.rf_leg_ids[0]] += amps[0] * s_a
+        overlay[:, self.lb_leg_ids[0]] += amps[0] * s_a
+        overlay[:, self.lf_leg_ids[0]] += amps[0] * s_b
+        overlay[:, self.rb_leg_ids[0]] += amps[0] * s_b
+
+        # hip
+        overlay[:, self.rf_leg_ids[1]] += amps[1] * s_a
+        overlay[:, self.lb_leg_ids[1]] += amps[1] * s_a
+        overlay[:, self.lf_leg_ids[1]] += amps[1] * s_b
+        overlay[:, self.rb_leg_ids[1]] += amps[1] * s_b
+
+        # knee
+        overlay[:, self.rf_leg_ids[2]] -= amps[2] * s_a
+        overlay[:, self.lb_leg_ids[2]] -= amps[2] * s_a
+        overlay[:, self.lf_leg_ids[2]] -= amps[2] * s_b
+        overlay[:, self.rb_leg_ids[2]] -= amps[2] * s_b
+
+        return torch.clip(clipped_actions + overlay, -self.clip_actions, self.clip_actions)
+
+    # ------------------------------------------------------------------
     # Stepping
     # ------------------------------------------------------------------
 
     def step(self, actions: torch.Tensor):
         delayed_actions = self.action_buffer.compute(actions)
+        delayed_actions = torch.zeros_like(delayed_actions)
         clipped_actions = torch.clip(delayed_actions, -self.clip_actions, self.clip_actions).to(self.device)
+        # 对角 trot 正弦叠在腿关节 action 上；轮关节列保持为策略输出
+        clipped_actions = self._apply_diagonal_trot_overlay(clipped_actions)
 
         # Leg joints → position target
         leg_pos_target = clipped_actions[:, self.leg_joint_ids] * self.action_scale + self.robot.data.default_joint_pos[:, self.leg_joint_ids]
