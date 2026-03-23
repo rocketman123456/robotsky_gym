@@ -8,6 +8,7 @@ import csv
 import json
 from pathlib import Path
 import numpy as np
+from numpy.polynomial.legendre import leg2poly
 import torch
 import mujoco
 import mujoco.viewer
@@ -43,353 +44,138 @@ def quat_to_rpy(quat):
     return roll, pitch, yaw
 
 
-def load_motor_config(config_path: str) -> dict:
-    """Load motor configuration from JSON file."""
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = json.load(f)
+# def load_motor_config(config_path: str) -> dict:
+#     """Load motor configuration from JSON file."""
+#     with open(config_path, "r", encoding="utf-8") as f:
+#         config = json.load(f)
 
-    motors = {}
-    for name, data in config.items():
-        # Skip non-motor data fields (like comments)
-        if name == "comment" or not isinstance(data, dict):
-            continue
-        motors[name] = data
+#     motors = {}
+#     for name, data in config.items():
+#         # Skip non-motor data fields (like comments)
+#         if name == "comment" or not isinstance(data, dict):
+#             continue
+#         motors[name] = data
 
-    return motors
-
-
-def compute_max_torque_at_velocity(velocity: float, motor_config: dict) -> float:
-    """
-    Compute maximum torque at given velocity based on motor envelope.
-
-    Motor envelope:
-    - For |v| <= corner_velocity: max_torque available
-    - For corner_velocity < |v| <= max_velocity: linear decrease (constant power region)
-    - For |v| > max_velocity: 0
-
-    Args:
-        velocity: Joint velocity (rad/s)
-        motor_config: Motor configuration dict with max_velocity, max_torque, corner_velocity, corner_torque
-
-    Returns:
-        Maximum allowed torque (Nm)
-    """
-    max_velocity = motor_config["max_velocity"]
-    max_torque = motor_config["max_torque"]
-    corner_velocity = motor_config["corner_velocity"]
-    corner_torque = motor_config["corner_torque"]
-
-    abs_vel = abs(velocity)
-
-    # If velocity exceeds max_velocity, torque is zero
-    if abs_vel >= max_velocity:
-        return 0.0
-
-    # If velocity is within constant torque region
-    if abs_vel <= corner_velocity:
-        return max_torque
-
-    # Constant power region: linear interpolation from (corner_velocity, corner_torque) to (max_velocity, 0)
-    # Slope = -corner_torque / (max_velocity - corner_velocity)
-    slope = -corner_torque / (max_velocity - corner_velocity)
-    max_torque_at_vel = corner_torque + slope * (abs_vel - corner_velocity)
-
-    return max_torque_at_vel
+#     return motors
 
 
-def clip_torque_by_velocity(torque: np.ndarray, velocity: np.ndarray, actuator_names: list, motor_mapping: dict, motor_configs: dict) -> np.ndarray:
-    """
-    Clip torque based on joint velocity and motor limits.
+# def compute_max_torque_at_velocity(velocity: float, motor_config: dict) -> float:
+#     """
+#     Compute maximum torque at given velocity based on motor envelope.
 
-    Args:
-        torque: Torque array (Nm)
-        velocity: Velocity array (rad/s)
-        actuator_names: List of actuator names (same length as torque/velocity)
-        motor_mapping: Dict mapping actuator name patterns to motor model names
-        motor_configs: Dict of motor configurations
+#     Motor envelope:
+#     - For |v| <= corner_velocity: max_torque available
+#     - For corner_velocity < |v| <= max_velocity: linear decrease (constant power region)
+#     - For |v| > max_velocity: 0
 
-    Returns:
-        Clipped torque array
-    """
-    clipped_torque = torque.copy()
+#     Args:
+#         velocity: Joint velocity (rad/s)
+#         motor_config: Motor configuration dict with max_velocity, max_torque, corner_velocity, corner_torque
 
-    for i in range(len(torque)):
-        vel = velocity[i]
-        torq = torque[i]
-        actuator_name = actuator_names[i] if i < len(actuator_names) else None
+#     Returns:
+#         Maximum allowed torque (Nm)
+#     """
+#     max_velocity = motor_config["max_velocity"]
+#     max_torque = motor_config["max_torque"]
+#     corner_velocity = motor_config["corner_velocity"]
+#     corner_torque = motor_config["corner_torque"]
 
-        # Find motor for this actuator by matching name patterns
-        motor_name = None
-        if actuator_name:
-            for pattern, motor in motor_mapping.items():
-                if pattern == "default":
-                    continue
-                if pattern in actuator_name:
-                    motor_name = motor
-                    break
+#     abs_vel = abs(velocity)
 
-        # Use default motor if no pattern matched
-        if not motor_name and "default" in motor_mapping:
-            motor_name = motor_mapping["default"]
+#     # If velocity exceeds max_velocity, torque is zero
+#     if abs_vel >= max_velocity:
+#         return 0.0
 
-        if motor_name and motor_name in motor_configs:
-            motor_config = motor_configs[motor_name]
-            max_torque = compute_max_torque_at_velocity(vel, motor_config)
+#     # If velocity is within constant torque region
+#     if abs_vel <= corner_velocity:
+#         return max_torque
 
-            # # Check if torque and velocity have the same sign (both positive or both negative)
-            # # If they have opposite signs or velocity is zero, motor is braking/stationary
-            # # and we don't apply velocity-based clipping
-            # same_direction = (vel > 0 and torq > 0) or (vel < 0 and torq < 0)
+#     # Constant power region: linear interpolation from (corner_velocity, corner_torque) to (max_velocity, 0)
+#     # Slope = -corner_torque / (max_velocity - corner_velocity)
+#     slope = -corner_torque / (max_velocity - corner_velocity)
+#     max_torque_at_vel = corner_torque + slope * (abs_vel - corner_velocity)
 
-            # if same_direction:
-            #     # Motor is accelerating: apply velocity-based torque limit
-            #     max_torque = compute_max_torque_at_velocity(vel, motor_config)
-            #     # Clip torque to motor envelope (respecting sign)
-            #     if torq > 0:
-            #         clipped_torque[i] = np.clip(torq, 0.0, max_torque)
-            #     else:
-            #         clipped_torque[i] = np.clip(torq, -max_torque, 0.0)
-            # else:
-            #     # Motor is braking or stationary: only clip to max_torque, ignore velocity limit
-            #     # This allows full braking torque even at high velocities
-            #     max_torque = motor_config["max_torque"]
-            #     clipped_torque[i] = np.clip(torq, -max_torque, max_torque)
+#     return max_torque_at_vel
 
-            # Clip torque to motor envelope
-            clipped_torque[i] = np.clip(torq, -max_torque, max_torque)
-        # If no motor found, don't clip (use original torque)
 
-    return clipped_torque
+# def clip_torque_by_velocity(torque: np.ndarray, velocity: np.ndarray, actuator_names: list, motor_mapping: dict, motor_configs: dict) -> np.ndarray:
+#     """
+#     Clip torque based on joint velocity and motor limits.
+
+#     Args:
+#         torque: Torque array (Nm)
+#         velocity: Velocity array (rad/s)
+#         actuator_names: List of actuator names (same length as torque/velocity)
+#         motor_mapping: Dict mapping actuator name patterns to motor model names
+#         motor_configs: Dict of motor configurations
+
+#     Returns:
+#         Clipped torque array
+#     """
+#     clipped_torque = torque.copy()
+
+#     for i in range(len(torque)):
+#         vel = velocity[i]
+#         torq = torque[i]
+#         actuator_name = actuator_names[i] if i < len(actuator_names) else None
+
+#         # Find motor for this actuator by matching name patterns
+#         motor_name = None
+#         if actuator_name:
+#             for pattern, motor in motor_mapping.items():
+#                 if pattern == "default":
+#                     continue
+#                 if pattern in actuator_name:
+#                     motor_name = motor
+#                     break
+
+#         # Use default motor if no pattern matched
+#         if not motor_name and "default" in motor_mapping:
+#             motor_name = motor_mapping["default"]
+
+#         if motor_name and motor_name in motor_configs:
+#             motor_config = motor_configs[motor_name]
+#             max_torque = compute_max_torque_at_velocity(vel, motor_config)
+
+#             # # Check if torque and velocity have the same sign (both positive or both negative)
+#             # # If they have opposite signs or velocity is zero, motor is braking/stationary
+#             # # and we don't apply velocity-based clipping
+#             # same_direction = (vel > 0 and torq > 0) or (vel < 0 and torq < 0)
+
+#             # if same_direction:
+#             #     # Motor is accelerating: apply velocity-based torque limit
+#             #     max_torque = compute_max_torque_at_velocity(vel, motor_config)
+#             #     # Clip torque to motor envelope (respecting sign)
+#             #     if torq > 0:
+#             #         clipped_torque[i] = np.clip(torq, 0.0, max_torque)
+#             #     else:
+#             #         clipped_torque[i] = np.clip(torq, -max_torque, 0.0)
+#             # else:
+#             #     # Motor is braking or stationary: only clip to max_torque, ignore velocity limit
+#             #     # This allows full braking torque even at high velocities
+#             #     max_torque = motor_config["max_torque"]
+#             #     clipped_torque[i] = np.clip(torq, -max_torque, max_torque)
+
+#             # Clip torque to motor envelope
+#             clipped_torque[i] = np.clip(torq, -max_torque, max_torque)
+#         # If no motor found, don't clip (use original torque)
+
+#     return clipped_torque
 
 
 def get_robot_preset(robot_type):
     """Get preset configuration for different robot types."""
     presets = {
-        "k1": {
-            "model_path": "legged_lab/assets/booster_k1/K1_serial.xml",
-            "num_action": 20,
-            "num_obs_per_step": 69,  # 70 # 69
-            "actor_obs_history_length": 10,
-            "init_pos": [0.0, 0.0, 0.6],
-            "init_rot": [1.0, 0.0, 0.0, 0.0],  # w, x, y, z
-            "default_joint_angles": {
-                "Shoulder_Pitch": 0.2,
-                "Left_Shoulder_Roll": -1.25,
-                "Right_Shoulder_Roll": 1.25,
-                "Left_Elbow_Yaw": -0.5,
-                "Right_Elbow_Yaw": 0.5,
-                "Hip_Pitch": -0.15,
-                "Knee_Pitch": 0.3,
-                "Ankle_Pitch": -0.15,
-                "default": 0.0,
-            },
-            "stiffness": {
-                "Shoulder_Pitch": 28.4,
-                "Shoulder_Roll": 28.4,
-                "Elbow_Pitch": 19.7,
-                "Elbow_Yaw": 12.6,
-                "_Hip_Pitch": 30.3,
-                "_Hip_Roll": 21.5,
-                "_Hip_Yaw": 32.0,
-                "_Knee_": 50.5,
-                "_Ankle_Pitch": 20.3,
-                "_Ankle_Roll": 6.5,
-            },
-            "damping": {
-                "Shoulder_Pitch": 1.5,
-                "Shoulder_Roll": 1.5,
-                "Elbow_Pitch": 1.25,
-                "Elbow_Yaw": 1.0,
-                "_Hip_Pitch": 2.4,
-                "_Hip_Roll": 1.7,
-                "_Hip_Yaw": 2.3,
-                "_Knee_": 4.0,
-                "_Ankle_Pitch": 0.9,
-                "_Ankle_Roll": 0.3,
-            },
-            "friction": {
-                "Shoulder_Pitch": 1e-4,
-                "Shoulder_Roll": 1e-4,
-                "Elbow_Pitch": 1e-4,
-                "Elbow_Yaw": 1e-4,
-                "_Hip_Pitch": 1e-4,
-                "_Hip_Roll": 1e-4,
-                "_Hip_Yaw": 1e-4,
-                "_Knee_": 1e-4,
-                "_Ankle_Pitch": 1e-4,
-                "_Ankle_Roll": 1e-4,
-            },
-            "motor_mapping": {
-                "Shoulder_Pitch": "4310",
-                "Shoulder_Roll": "4310",
-                "Elbow_Pitch": "4310",
-                "Elbow_Yaw": "4310",
-                "_Hip_Pitch": "6408",
-                "_Hip_Roll": "4310",
-                "_Hip_Yaw": "4315",
-                "_Knee_": "6416",
-                "_Ankle_Pitch": "4310",
-                "_Ankle_Roll": "4310",
-                "default": "4310",
-            },
-            # fmt:off
-            "mujoco_to_isaac_idx": [
-                0, 4, 8, 14, 1, 5, 9, 15, 2, 6, 10, 16, 3, 7, 11, 17, 12, 18, 13, 19,
-            ],
-            "isaac_to_mujoco_idx": [
-                0, 4, 8, 12, 1, 5, 9, 13, 2, 6, 10, 14, 16, 18, 3, 7, 11, 15, 17, 19,
-            ],
-            # fmt:on
-        },
-        "k1_leg": {
-            "model_path": "legged_lab/assets/booster_k1/K1_serial_leg.xml",
-            "num_action": 12,  # 6 joints per leg * 2 legs
-            "num_obs_per_step": 45,  # 3 (ang_vel) + 3 (projected_gravity) + 3 (command) + 12 (joint_pos) + 12 (joint_vel) + 12 (action)
-            "actor_obs_history_length": 10,
-            "init_pos": [0.0, 0.0, 0.6],
-            "init_rot": [1.0, 0.0, 0.0, 0.0],
-            "default_joint_angles": {
-                "Hip_Pitch": -0.15,
-                "Knee_Pitch": 0.3,
-                "Ankle_Pitch": -0.15,
-                "default": 0.0,
-            },
-            "stiffness": {
-                "_Hip_": 100.0,
-                "_Knee_": 100.0,
-                "_Ankle_": 50.0,
-            },
-            "damping": {
-                "_Hip_": 2.0,
-                "_Knee_": 2.0,
-                "_Ankle_": 1.0,
-            },
-            "friction": {
-                "_Hip_": 0.2,
-                "_Knee_": 0.2,
-                "_Ankle_": 0.1,
-            },
-            "motor_mapping": {
-                "_Hip_Pitch": "6408",
-                "_Hip_Yaw": "6408",
-                "_Knee_": "6416",
-                "_Ankle_": "4310",
-                "default": "4310",
-            },
-            "mujoco_to_isaac_idx": [0, 6, 1, 7, 2, 8, 3, 9, 4, 10, 5, 11],  # Placeholder, adjust based on actual mapping
-            "isaac_to_mujoco_idx": [0, 2, 4, 6, 8, 10, 1, 3, 5, 7, 9, 11],  # Placeholder, adjust based on actual mapping
-        },
-        "t1": {
-            "model_path": "legged_lab/assets/booster_t1/T1_serial_collision.xml",
-            "num_action": 21,
-            "num_obs_per_step": 72,
-            "actor_obs_history_length": 10,
-            "init_pos": [0.0, 0.0, 0.7],
-            "init_rot": [1.0, 0.0, 0.0, 0.0],
-            "default_joint_angles": {
-                "Shoulder_Pitch": 0.2,
-                "Left_Shoulder_Roll": -1.3,
-                "Right_Shoulder_Roll": 1.3,
-                "Left_Elbow_Yaw": -0.5,
-                "Right_Elbow_Yaw": 0.5,
-                "Hip_Pitch": -0.2,
-                "Knee_Pitch": 0.4,
-                "Ankle_Pitch": -0.2,
-                "Waist": 0.0,
-                "default": 0.0,
-            },
-            "stiffness": {
-                "_Shoulder_": 50.0,
-                "_Elbow_": 50.0,
-                "Waist": 200.0,
-                "_Hip_": 200.0,
-                "_Knee_": 200.0,
-                "_Ankle_": 50.0,
-            },
-            "damping": {
-                "_Shoulder_": 1.0,
-                "_Elbow_": 1.0,
-                "Waist": 5.0,
-                "_Hip_": 5.0,
-                "_Knee_": 5.0,
-                "_Ankle_": 1.0,
-            },
-            "friction": {
-                "_Shoulder_": 0.1,
-                "_Elbow_": 0.1,
-                "Waist": 0.2,
-                "_Hip_": 0.2,
-                "_Knee_": 0.2,
-                "_Ankle_": 0.1,
-            },
-            "motor_mapping": {
-                "_Shoulder_": "4310",
-                "_Elbow_": "4310",
-                "Waist": "6416",
-                "_Hip_": "6416",
-                "_Knee_": "6408",
-                "_Ankle_": "4315",
-                "default": "4310",
-            },
-            # fmt:off
-            "mujoco_to_isaac_idx": [
-                0,  4,  8,  1, 5,  9, 15,  2, 6, 10, 16,  3, 7, 11, 17, 12, 18, 13, 19, 14, 20
-            ],
-            "isaac_to_mujoco_idx": [
-                0,  3,  7, 11, 1,  4,  8, 12, 2, 5,  9, 13, 15, 17, 19, 6, 10, 14, 16, 18, 20
-            ],
-            # fmt:on
-        },
-        "t1p": {
-            "model_path": "legged_lab/assets/booster_t1p/T1P_serial_25_v2.xml",
-            "num_action": 21,  # Adjust if different
-            "num_obs_per_step": 72,
-            "actor_obs_history_length": 10,
-            "init_pos": [0.0, 0.0, 0.7],
-            "init_rot": [1.0, 0.0, 0.0, 0.0],
-            "default_joint_angles": {
-                "Shoulder_Pitch": 0.2,
-                "Left_Shoulder_Roll": -1.3,
-                "Right_Shoulder_Roll": 1.3,
-                "Left_Elbow_Yaw": -0.5,
-                "Right_Elbow_Yaw": 0.5,
-                "Hip_Pitch": -0.2,
-                "Knee_Pitch": 0.4,
-                "Ankle_Pitch": -0.2,
-                "default": 0.0,
-            },
-            "stiffness": {
-                "_Shoulder_": 50.0,
-                "_Elbow_": 50.0,
-                "_Hip_": 200.0,
-                "_Knee_": 200.0,
-                "_Ankle_": 50.0,
-            },
-            "damping": {
-                "_Shoulder_": 1.0,
-                "_Elbow_": 1.0,
-                "_Hip_": 5.0,
-                "_Knee_": 5.0,
-                "_Ankle_": 1.0,
-            },
-            "friction": {
-                "_Shoulder_": 0.1,
-                "_Elbow_": 0.1,
-                "_Hip_": 0.2,
-                "_Knee_": 0.2,
-                "_Ankle_": 0.1,
-            },
-            "mujoco_to_isaac_idx": list(range(21)),  # Placeholder, adjust based on actual mapping
-            "isaac_to_mujoco_idx": list(range(21)),  # Placeholder, adjust based on actual mapping
-        },
         "robotsky_wq": {
             "model_path": "robotsky_lab/assets/robotsky_wq/mjcf/robotsky_wq.xml",
             "num_action": 16,
             # 3 (ang_vel) + 3 (projected_gravity) + 3 (command) + 16 (joint_pos) + 16 (joint_vel) + 16 (action)
             "num_obs_per_step": 57,
             "actor_obs_history_length": 10,
-            "init_pos": [0.0, 0.0, 0.5],
+            "init_pos": [0.0, 0.0, 0.45],
             "init_rot": [1.0, 0.0, 0.0, 0.0],
+            "leg_index": [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14],
+            "wheel_index": [3, 7, 11, 15],
             "default_joint_angles": {
                 "RF_Roll_Joint": 0.1,
                 "RF_Hip_Joint": -0.5,
@@ -410,33 +196,33 @@ def get_robot_preset(robot_type):
                 "default": 0.0,
             },
             "stiffness": {
-                "Roll_Joint": 20.0,
-                "Hip_Joint": 20.0,
-                "Knee_Joint": 40.0,
+                "Roll": 20.0,
+                "Hip": 20.0,
+                "Knee": 40.0,
                 # wheel velocity-controlled in Isaac; in MuJoCo keep it low-stiffness
-                "Wheel_Joint": 0.0,
+                "Wheel": 0.0,
             },
             "damping": {
-                "Roll_Joint": 1.0,
-                "Hip_Joint": 1.0,
-                "Knee_Joint": 1.0,
-                "Wheel_Joint": 1.0,
+                "Roll": 1.0,
+                "Hip": 1.0,
+                "Knee": 1.0,
+                "Wheel": 2.0,
             },
             "friction": {
-                "Roll_Joint": 1e-4,
-                "Hip_Joint": 1e-4,
-                "Knee_Joint": 1e-4,
-                "Wheel_Joint": 1e-4,
+                "Roll": 1e-4,
+                "Hip": 1e-4,
+                "Knee": 1e-4,
+                "Wheel": 1e-4,
             },
-            "motor_mapping": {
-                # If you have a motor config JSON, map by joint name substring.
-                # Wheels usually have different envelope; adjust as needed.
-                "Roll_Joint": "4310",
-                "Hip_Joint": "6408",
-                "Knee_Joint": "6416",
-                "Wheel_Joint": "4310",
-                "default": "4310",
-            },
+            # "motor_mapping": {
+            #     # If you have a motor config JSON, map by joint name substring.
+            #     # Wheels usually have different envelope; adjust as needed.
+            #     "Roll_Joint": "4310",
+            #     "Hip_Joint": "6408",
+            #     "Knee_Joint": "6416",
+            #     "Wheel_Joint": "4310",
+            #     "default": "4310",
+            # },
             # From terminal output:
             # ISAAC to URDF indices: [3, 7, 11, 15, 1, 5, 9, 13, 2, 6, 10, 14, 0, 4, 8, 12]
             # URDF to ISAAC indices: [12, 4, 8, 0, 13, 5, 9, 1, 14, 6, 10, 2, 15, 7, 11, 3]
@@ -453,8 +239,8 @@ def main():
         "--robot_type",
         type=str,
         required=True,
-        choices=["k1", "k1_leg", "t1", "t1p", "robotsky_wq"],
-        help="Robot type (k1, k1_leg, t1, t1p, robotsky_wq)",
+        choices=["robotsky_wq"],
+        help="Robot type (robotsky_wq)",
     )
     parser.add_argument(
         "--policy_path",
@@ -513,6 +299,13 @@ def main():
         help="Action scaling factor. Overrides robot preset.",
     )
     parser.add_argument(
+        "--wheel_action_scale",
+        type=float,
+        required=False,
+        default=None,
+        help="Action scaling factor. Overrides robot preset.",
+    )
+    parser.add_argument(
         "--smooth_factor",
         type=float,
         required=False,
@@ -526,18 +319,18 @@ def main():
         default=None,
         help="Path to output CSV file for recording robot state. If not specified, no CSV will be written.",
     )
-    parser.add_argument(
-        "--motor_config",
-        type=str,
-        required=False,
-        default=None,
-        help="Path to motor configuration JSON file. If not specified, will try to use default path.",
-    )
-    parser.add_argument(
-        "--enable_motor_clipping",
-        action="store_true",
-        help="Enable motor torque clipping based on velocity limits.",
-    )
+    # parser.add_argument(
+    #     "--motor_config",
+    #     type=str,
+    #     required=False,
+    #     default=None,
+    #     help="Path to motor configuration JSON file. If not specified, will try to use default path.",
+    # )
+    # parser.add_argument(
+    #     "--enable_motor_clipping",
+    #     action="store_true",
+    #     help="Enable motor torque clipping based on velocity limits.",
+    # )
     args = parser.parse_args()
 
     # Get robot preset
@@ -564,6 +357,9 @@ def main():
     num_action = args.num_action if args.num_action is not None else robot_preset["num_action"]
     num_obs_per_step = args.num_obs_per_step if args.num_obs_per_step is not None else robot_preset["num_obs_per_step"]
     action_scale = args.action_scale if args.action_scale is not None else 0.25
+    wheel_action_scale = args.wheel_action_scale if args.wheel_action_scale is not None else 4.0
+    leg_index = np.array(robot_preset["leg_index"], dtype=np.int32)
+    wheel_index = np.array(robot_preset["wheel_index"], dtype=np.int32)
 
     print(f"[INFO] Robot type: {args.robot_type}")
     print(f"[INFO] Model path: {model_path}")
@@ -582,43 +378,43 @@ def main():
     mujoco.mj_resetData(mj_model, mj_data)
 
     # Load motor configuration if motor clipping is enabled
-    motor_configs = {}
-    actuator_names = []
-    motor_config_path = None
-    if args.enable_motor_clipping:
-        # Determine motor config path
-        if args.motor_config:
-            motor_config_path = args.motor_config
-        else:
-            # Try default path relative to script location
-            script_dir = Path(__file__).parent
-            default_motor_config = script_dir.parent / "assets" / "motor" / "motor_config.json"
-            if default_motor_config.exists():
-                motor_config_path = str(default_motor_config)
-            else:
-                # Try alternative path from workspace root
-                alt_motor_config = Path("legged_lab/assets/motor/motor_config.json")
-                if alt_motor_config.exists():
-                    motor_config_path = str(alt_motor_config)
-                else:
-                    print("[WARNING] Motor config file not found. Motor clipping will be disabled.")
-                    print(f"[WARNING] Tried: {default_motor_config} and {alt_motor_config}")
-                    args.enable_motor_clipping = False
+    # motor_configs = {}
+    # actuator_names = []
+    # motor_config_path = None
+    # if args.enable_motor_clipping:
+    #     # Determine motor config path
+    #     if args.motor_config:
+    #         motor_config_path = args.motor_config
+    #     else:
+    #         # Try default path relative to script location
+    #         script_dir = Path(__file__).parent
+    #         default_motor_config = script_dir.parent / "assets" / "motor" / "motor_config.json"
+    #         if default_motor_config.exists():
+    #             motor_config_path = str(default_motor_config)
+    #         else:
+    #             # Try alternative path from workspace root
+    #             alt_motor_config = Path("legged_lab/assets/motor/motor_config.json")
+    #             if alt_motor_config.exists():
+    #                 motor_config_path = str(alt_motor_config)
+    #             else:
+    #                 print("[WARNING] Motor config file not found. Motor clipping will be disabled.")
+    #                 print(f"[WARNING] Tried: {default_motor_config} and {alt_motor_config}")
+    #                 args.enable_motor_clipping = False
 
-        if args.enable_motor_clipping and motor_config_path:
-            try:
-                motor_configs = load_motor_config(motor_config_path)
-                print(f"[INFO] Loaded {len(motor_configs)} motor configurations from: {motor_config_path}")
+    #     if args.enable_motor_clipping and motor_config_path:
+    #         try:
+    #             motor_configs = load_motor_config(motor_config_path)
+    #             print(f"[INFO] Loaded {len(motor_configs)} motor configurations from: {motor_config_path}")
 
-                # Get actuator names from MuJoCo model
-                for i in range(mj_model.nu):
-                    actuator_name = mujoco.mj_id2name(mj_model, mujoco.mjtObj.mjOBJ_ACTUATOR, i)
-                    actuator_names.append(actuator_name if actuator_name else f"actuator_{i}")
+    #             # Get actuator names from MuJoCo model
+    #             for i in range(mj_model.nu):
+    #                 actuator_name = mujoco.mj_id2name(mj_model, mujoco.mjtObj.mjOBJ_ACTUATOR, i)
+    #                 actuator_names.append(actuator_name if actuator_name else f"actuator_{i}")
 
-                print(f"[INFO] Motor clipping enabled for {len(actuator_names)} actuators")
-            except Exception as e:
-                print(f"[WARNING] Failed to load motor config: {e}. Motor clipping will be disabled.")
-                args.enable_motor_clipping = False
+    #             print(f"[INFO] Motor clipping enabled for {len(actuator_names)} actuators")
+    #         except Exception as e:
+    #             print(f"[WARNING] Failed to load motor config: {e}. Motor clipping will be disabled.")
+    #             args.enable_motor_clipping = False
 
     # Setup default joint positions, stiffness, damping, and friction
     default_dof_pos = np.zeros(mj_model.nu, dtype=np.float32)
@@ -673,8 +469,8 @@ def main():
     space_pressed_last = False  # Track space key state to detect press event
 
     # Get joint index mappings
-    mujoco_to_isaac_idx = robot_preset["mujoco_to_isaac_idx"]
-    isaac_to_mujoco_idx = robot_preset["isaac_to_mujoco_idx"]
+    mujoco_to_isaac_idx = np.array(robot_preset["mujoco_to_isaac_idx"], dtype=np.int32)
+    isaac_to_mujoco_idx = np.array(robot_preset["isaac_to_mujoco_idx"], dtype=np.int32)
 
     # Setup CSV recording if output path is provided
     csv_writer = None
@@ -740,10 +536,8 @@ def main():
                     parts = sys.stdin.readline().strip().split()
                     if len(parts) == 3:
                         lin_vel_x, lin_vel_y, ang_vel_yaw = map(float, parts)
-                        print(
-                            f"Updated command to: x={lin_vel_x}, y={lin_vel_y}, yaw={ang_vel_yaw}\nSet command (x, y, yaw): ",
-                            end="",
-                        )
+                        print(f"Updated command to: x={lin_vel_x}, y={lin_vel_y}, yaw={ang_vel_yaw}")
+                        print("Set command (x, y, yaw): ", end="")
                     else:
                         raise ValueError
                 except ValueError:
@@ -762,8 +556,8 @@ def main():
                 # Compute observations and actions at decimation rate
                 if it % args.decimation == 0:
                     obs = np.zeros(num_obs_per_step, dtype=np.float32)
-                    obs[0:3] = base_ang_vel
-                    obs[3:6] = projected_gravity
+                    obs[0:3] = base_ang_vel * 1.0
+                    obs[3:6] = projected_gravity * 1.0
                     obs[6] = lin_vel_x
                     obs[7] = lin_vel_y
                     obs[8] = ang_vel_yaw
@@ -771,15 +565,19 @@ def main():
                     # Map joint positions and velocities
                     # Structure: obs[9:9+num_actions] = joint_pos, obs[9+num_actions:9+2*num_actions] = joint_vel, obs[9+2*num_actions:9+3*num_actions] = actions
                     if len(mujoco_to_isaac_idx) >= num_action:
-                        obs[9 : 9 + num_action] = (dof_pos - default_dof_pos)[mujoco_to_isaac_idx[:num_action]] * 1.0
-                        obs[9 + num_action : 9 + 2 * num_action] = dof_vel[mujoco_to_isaac_idx[:num_action]] * 0.1
+                        joint_pos = (dof_pos - default_dof_pos)[mujoco_to_isaac_idx[:num_action]] * 1.0
+                        joint_pos[mujoco_to_isaac_idx[wheel_index]] = 0.0
+                        obs[9 : 9 + num_action] = joint_pos
+                        joint_vel = dof_vel[mujoco_to_isaac_idx[:num_action]] * 1.0  # 0.05
+                        joint_vel[mujoco_to_isaac_idx[wheel_index]] = dof_vel[mujoco_to_isaac_idx[wheel_index]] * 0.1
+                        obs[9 + num_action : 9 + 2 * num_action] = joint_vel
                         obs[9 + 2 * num_action : 9 + 3 * num_action] = actions * 1.0
                     else:
-                        # Fallback when mapping is shorter than num_action
-                        obs[9 : 9 + len(mujoco_to_isaac_idx)] = (dof_pos - default_dof_pos[mujoco_to_isaac_idx]) * 1.0
-                        obs[9 + len(mujoco_to_isaac_idx) : 9 + 2 * len(mujoco_to_isaac_idx)] = dof_vel[mujoco_to_isaac_idx] * 0.1
-                        obs[9 + 2 * len(mujoco_to_isaac_idx) : 9 + 2 * len(mujoco_to_isaac_idx) + num_action] = actions[:num_action] * 1.0
-
+                        # # Fallback when mapping is shorter than num_action
+                        # obs[9 : 9 + len(mujoco_to_isaac_idx)] = (dof_pos - default_dof_pos[mujoco_to_isaac_idx]) * 1.0
+                        # obs[9 + len(mujoco_to_isaac_idx) : 9 + 2 * len(mujoco_to_isaac_idx)] = dof_vel[mujoco_to_isaac_idx] * 0.1
+                        # obs[9 + 2 * len(mujoco_to_isaac_idx) : 9 + 2 * len(mujoco_to_isaac_idx) + num_action] = actions[:num_action] * 1.0
+                        print(f"WARNING: Mujoco to Isaac index mapping is shorter than num_action. Only applying to mapped indices. obs")
                     # cmd_is_zero = abs(lin_vel_x) + abs(lin_vel_y) + abs(ang_vel_yaw) < 0.02
                     # obs[9 + 3 * num_action] = cmd_is_zero
 
@@ -801,28 +599,33 @@ def main():
                 # Apply actions to all actuators using the mapping (isaac_to_mujoco_idx should have length num_action)
                 if len(isaac_to_mujoco_idx) == num_action:
                     dof_targets[:] += action_scale * smoothed_actions[isaac_to_mujoco_idx]
+                    dof_targets[wheel_index] = smoothed_actions[isaac_to_mujoco_idx[wheel_index]] * wheel_action_scale
                 elif len(isaac_to_mujoco_idx) > num_action:
+                    print(f"WARNING: Isaac to MuJoCo index mapping is larger than num_action.")
                     # Use first num_action elements if mapping is longer
                     dof_targets[:] += action_scale * smoothed_actions[isaac_to_mujoco_idx[:num_action]]
+                    # dof_targets[wheel_index] = smoothed_actions[wheel_index] * wheel_action_scale
                 else:
-                    # If mapping is shorter, only apply to mapped indices
-                    for i, mujoco_idx in enumerate(isaac_to_mujoco_idx):
-                        if i < num_action:
-                            dof_targets[mujoco_idx] += action_scale * smoothed_actions[i]
+                    # # If mapping is shorter, only apply to mapped indices
+                    # for i, mujoco_idx in enumerate(isaac_to_mujoco_idx):
+                    #     if i < num_action:
+                    #         dof_targets[mujoco_idx] += action_scale * smoothed_actions[i]
+                    print(f"WARNING: Isaac to MuJoCo index mapping is shorter than num_action. Only applying to mapped indices.")
 
                 # Apply PD control
                 # Note: Friction can be added with: -dof_friction * sign(dof_vel) * abs(dof_vel)
                 ctrl_torque = dof_stiffness * (dof_targets - dof_pos) - dof_damping * dof_vel
+                ctrl_torque[wheel_index] = dof_damping[wheel_index] * (dof_targets[wheel_index] - dof_vel[wheel_index])
 
                 # Apply motor torque clipping based on velocity if enabled
-                if args.enable_motor_clipping and "motor_mapping" in robot_preset:
-                    ctrl_torque = clip_torque_by_velocity(
-                        ctrl_torque,
-                        dof_vel,
-                        actuator_names,
-                        robot_preset["motor_mapping"],
-                        motor_configs,
-                    )
+                # if args.enable_motor_clipping and "motor_mapping" in robot_preset:
+                #     ctrl_torque = clip_torque_by_velocity(
+                #         ctrl_torque,
+                #         dof_vel,
+                #         actuator_names,
+                #         robot_preset["motor_mapping"],
+                #         motor_configs,
+                #     )
 
                 mj_data.ctrl = np.clip(
                     ctrl_torque,

@@ -1,6 +1,10 @@
 <mujoco model="robotsky_wq">
-  <compiler angle="radian" autolimits="true"/>
-  <statistic meansize="0.105494" extent="0.640936" center="0 0 0.0535"/>
+  <compiler angle="radian" meshdir="../meshes/" autolimits="true" />
+  <option timestep="0.002" integrator="implicit" />
+  <option cone="elliptic" impratio="100" />
+
+  <!-- <statistic meansize="0.105494" extent="0.640936" center="0 0 0.0535"/> -->
+
   <asset>
     <mesh name="base_link" file="base_link.STL"/>
     <mesh name="RF_Roll_Link" file="RF_Roll_Link.STL"/>
@@ -19,92 +23,202 @@
     <mesh name="LB_Hip_Link" file="LB_Hip_Link.STL"/>
     <mesh name="LB_Knee_Link" file="LB_Knee_Link.STL"/>
     <mesh name="LB_Wheel_Link" file="LB_Wheel_Link.STL"/>
+
+    <texture name="grid" type="2d" builtin="checker" rgb1=".1 .2 .3" rgb2=".2 .3 .4" width="300" height="300" />
+    <material name="grid" texture="grid" texrepeat="8 8" reflectance=".1" />
   </asset>
+
+  <default>
+    <geom contype="0" conaffinity="0" />
+  </default>
+
   <worldbody>
+    <light name="top" pos="0 0 10" castshadow="false" />
+    <geom size="10 10 .01" type="plane" pos="0 0 0" material="grid" contype="1" conaffinity="1" friction="0.8 0.1 0.001" />
+    <!-- <geom size="10 10 .01" type="plane" pos="0 0 0" material="grid" /> -->
+
     <body name="base_link">
-      <inertial pos="0 0 0.0535" quat="0.5 0.5 0.5 0.5" mass="12.2741" diaginertia="0.155787 0.147821 0.0643368"/>
+      <!-- <freejoint /> -->
       <joint name="base_link_free_joint" type="free"/>
-      <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="base_link"/>
+
+      <!-- <inertial pos="0 0 0.0535" quat="0.5 0.5 0.5 0.5" mass="12.2741" diaginertia="0.155787 0.147821 0.0643368"/> -->
+      <inertial pos="0 0 0.0" quat="0.0 0.0 0.0 1.0" mass="12.2741" diaginertia="0.155787 0.147821 0.0643368"/>
+      <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="base_link" contype="1" conaffinity="1" />
+      <site name="imu" pos="0 0 0" />
+
       <body name="RF_Roll_Link">
         <inertial pos="0.213 -0.0605 0" quat="0.707107 0.707107 0 0" mass="0.351377" diaginertia="0.000147513 0.000147513 0.000142703"/>
-        <joint name="RF_Roll_Joint" pos="0 0 0" axis="1 0 0" range="-10 10"/>
+        <joint name="RF_Roll_Joint" pos="0 0 0" axis="1 0 0" range="-0.5 1.57" actuatorfrcrange="-7 7"/>
         <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="RF_Roll_Link"/>
         <body name="RF_Hip_Link" pos="0.213 -0.06 0">
           <inertial pos="-0.08 -0.0655 0" quat="0.5 0.5 0.5 0.5" mass="0.2576" diaginertia="0.000583893 0.000575843 6.06433e-05"/>
-          <joint name="RF_Hip_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+          <joint name="RF_Hip_Joint" pos="0 0 0" axis="0 1 0" range="-3.14 0.01" actuatorfrcrange="-14 14"/>
           <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="RF_Hip_Link"/>
           <body name="RF_Knee_Link" pos="-0.16 -0.0655 0">
             <inertial pos="0.08 -0.04 0" quat="0.5 0.5 0.5 0.5" mass="0.10488" diaginertia="0.00023161 0.000226899 1.10211e-05"/>
-            <joint name="RF_Knee_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+            <joint name="RF_Knee_Joint" pos="0 0 0" axis="0 1 0" range="-0.01 3.14" actuatorfrcrange="-17 17"/>
             <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="RF_Knee_Link"/>
             <body name="RF_Wheel_Link" pos="0.16 -0.04 0">
               <inertial pos="0 -0.043 0" quat="0.707107 0 0 0.707107" mass="0.630871" diaginertia="0.00177432 0.000951564 0.000951564"/>
-              <joint name="RF_Wheel_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
-              <geom type="mesh" rgba="1 1 1 1" mesh="RF_Wheel_Link"/>
+              <joint name="RF_Wheel_Joint" pos="0 0 0" axis="0 1 0" range="-10000000 10000000" actuatorfrcrange="-7 7"/>
+              <geom type="mesh" rgba="1 1 1 1" mesh="RF_Wheel_Link" contype="1" conaffinity="1" priority="1" condim="6" friction="1.5 0.05 0.0002" />
             </body>
           </body>
         </body>
       </body>
       <body name="LF_Roll_Link" pos="0.213 0.06 0">
         <inertial pos="0 0.0005 0" quat="0.707107 0.707107 0 0" mass="0.351377" diaginertia="0.000147513 0.000147513 0.000142703"/>
-        <joint name="LF_Roll_Joint" pos="0 0 0" axis="1 0 0" range="-10 10"/>
+        <joint name="LF_Roll_Joint" pos="0 0 0" axis="1 0 0" range="-1.57 0.5" actuatorfrcrange="-7 7"/>
         <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="LF_Roll_Link"/>
         <body name="LF_Hip_Link">
           <inertial pos="-0.08 0.0655 0" quat="0.5 0.5 0.5 0.5" mass="0.2576" diaginertia="0.000583893 0.000575843 6.06433e-05"/>
-          <joint name="LF_Hip_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+          <joint name="LF_Hip_Joint" pos="0 0 0" axis="0 1 0" range="-3.14 0.01" actuatorfrcrange="-14 14"/>
           <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="LF_Hip_Link"/>
           <body name="LF_Knee_Link" pos="-0.16 0.0655 0">
             <inertial pos="0.08 0.04 0" quat="0.5 0.5 0.5 0.5" mass="0.10488" diaginertia="0.00023161 0.000226899 1.10211e-05"/>
-            <joint name="LF_Knee_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+            <joint name="LF_Knee_Joint" pos="0 0 0" axis="0 1 0" range="-0.01 3.14" actuatorfrcrange="-17 17"/>
             <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="LF_Knee_Link"/>
             <body name="LF_Wheel_Link" pos="0.16 0.04 0">
               <inertial pos="0 0.043 0" quat="0.707107 0 0 0.707107" mass="0.630871" diaginertia="0.00177432 0.000951564 0.000951564"/>
-              <joint name="LF_Wheel_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
-              <geom type="mesh" rgba="1 1 1 1" mesh="LF_Wheel_Link"/>
+              <joint name="LF_Wheel_Joint" pos="0 0 0" axis="0 1 0" range="-10000000 10000000" actuatorfrcrange="-7 7"/>
+              <geom type="mesh" rgba="1 1 1 1" mesh="LF_Wheel_Link" contype="1" conaffinity="1" priority="1" condim="6" friction="1.5 0.05 0.0002" />
             </body>
           </body>
         </body>
       </body>
       <body name="RB_Roll_Link" pos="-0.213 -0.06 0">
         <inertial pos="0 -0.0005 0" quat="0.707107 0.707107 0 0" mass="0.351377" diaginertia="0.000147513 0.000147513 0.000142703"/>
-        <joint name="RB_Roll_Joint" pos="0 0 0" axis="1 0 0" range="-10 10"/>
+        <joint name="RB_Roll_Joint" pos="0 0 0" axis="1 0 0" range="-0.5 1.57" actuatorfrcrange="-7 7"/>
         <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="RB_Roll_Link"/>
         <body name="RB_Hip_Link">
           <inertial pos="0.08 -0.0655 0" quat="0.5 0.5 0.5 0.5" mass="0.2576" diaginertia="0.000583893 0.000575843 6.06433e-05"/>
-          <joint name="RB_Hip_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+          <joint name="RB_Hip_Joint" pos="0 0 0" axis="0 1 0" range="-0.01 3.14" actuatorfrcrange="-14 14"/>
           <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="RB_Hip_Link"/>
           <body name="RB_Knee_Link" pos="0.16 -0.0655 0">
             <inertial pos="-0.08 -0.04 0" quat="0.5 0.5 0.5 0.5" mass="0.10488" diaginertia="0.00023161 0.000226899 1.10211e-05"/>
-            <joint name="RB_Knee_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+            <joint name="RB_Knee_Joint" pos="0 0 0" axis="0 1 0" range="-3.14 0.01" actuatorfrcrange="-17 17"/>
             <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="RB_Knee_Link"/>
             <body name="RB_Wheel_Link" pos="-0.16 -0.04 0">
               <inertial pos="0 -0.043 0" quat="0.707107 0 0 0.707107" mass="0.630871" diaginertia="0.00177432 0.000951564 0.000951564"/>
-              <joint name="RB_Wheel_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
-              <geom type="mesh" rgba="1 1 1 1" mesh="RB_Wheel_Link"/>
+              <joint name="RB_Wheel_Joint" pos="0 0 0" axis="0 1 0" range="-10000000 10000000" actuatorfrcrange="-7 7"/>
+              <geom type="mesh" rgba="1 1 1 1" mesh="RB_Wheel_Link" contype="1" conaffinity="1" priority="1" condim="6" friction="1.5 0.05 0.0002" />
             </body>
           </body>
         </body>
       </body>
       <body name="LB_Roll_Link" pos="-0.213 0.06 0">
         <inertial pos="0 0.0005 0" quat="0.707107 0.707107 0 0" mass="0.351377" diaginertia="0.000147513 0.000147513 0.000142703"/>
-        <joint name="LB_Roll_Joint" pos="0 0 0" axis="1 0 0" range="-10 10"/>
+        <joint name="LB_Roll_Joint" pos="0 0 0" axis="1 0 0" range="-1.57 0.5" actuatorfrcrange="-7 7"/>
         <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="LB_Roll_Link"/>
         <body name="LB_Hip_Link">
           <inertial pos="0.08 0.0655 0" quat="0.5 0.5 0.5 0.5" mass="0.2576" diaginertia="0.000583893 0.000575843 6.06433e-05"/>
-          <joint name="LB_Hip_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+          <joint name="LB_Hip_Joint" pos="0 0 0" axis="0 1 0" range="-0.01 1.57" actuatorfrcrange="-14 14"/>
           <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="LB_Hip_Link"/>
           <body name="LB_Knee_Link" pos="0.16 0.0655 0">
             <inertial pos="-0.08 0.04 0" quat="0.5 0.5 0.5 0.5" mass="0.10488" diaginertia="0.00023161 0.000226899 1.10211e-05"/>
-            <joint name="LB_Knee_Joint" pos="0 0 0" axis="0 1 0" range="-10 10"/>
+            <joint name="LB_Knee_Joint" pos="0 0 0" axis="0 1 0" range="-3.14 0.01" actuatorfrcrange="-17 17"/>
             <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="LB_Knee_Link"/>
             <body name="LB_Wheel_Link" pos="-0.16 0.04 0">
               <inertial pos="0 0.043 0" quat="0.707107 0 0 0.707107" mass="0.630871" diaginertia="0.00177432 0.000951564 0.000951564"/>
-              <joint name="LB_Wheel_Joint" pos="0 0 0" axis="0 1 0"/>
-              <geom type="mesh" rgba="1 1 1 1" mesh="LB_Wheel_Link"/>
+              <joint name="LB_Wheel_Joint" pos="0 0 0" axis="0 1 0" range="-10000000 10000000" actuatorfrcrange="-7 7"/>
+              <geom type="mesh" rgba="1 1 1 1" mesh="LB_Wheel_Link" contype="1" conaffinity="1" priority="1" condim="6" friction="1.5 0.05 0.0002" />
             </body>
           </body>
         </body>
       </body>
     </body>
   </worldbody>
+
+  <actuator>
+    <motor name="RF_Roll" joint="RF_Roll_Joint" ctrlrange="-5.0 5.0" ctrllimited="true"/>
+    <motor name="RF_Hip" joint="RF_Hip_Joint" ctrlrange="-8.0 8.0" ctrllimited="true"/>
+    <motor name="RF_Knee" joint="RF_Knee_Joint" ctrlrange="-12.0 12.0" ctrllimited="true"/>
+    <motor name="RF_Wheel" joint="RF_Wheel_Joint" ctrlrange="-5.0 5.0" ctrllimited="true"/>
+
+    <motor name="LF_Roll" joint="LF_Roll_Joint" ctrlrange="-5.0 5.0" ctrllimited="true"/>
+    <motor name="LF_Hip" joint="LF_Hip_Joint" ctrlrange="-8.0 8.0" ctrllimited="true"/>
+    <motor name="LF_Knee" joint="LF_Knee_Joint" ctrlrange="-12.0 12.0" ctrllimited="true"/>
+    <motor name="LF_Wheel" joint="LF_Wheel_Joint" ctrlrange="-5.0 5.0" ctrllimited="true"/>
+
+    <motor name="RB_Roll" joint="RB_Roll_Joint" ctrlrange="-5.0 5.0" ctrllimited="true"/>
+    <motor name="RB_Hip" joint="RB_Hip_Joint" ctrlrange="-8.0 8.0" ctrllimited="true"/>
+    <motor name="RB_Knee" joint="RB_Knee_Joint" ctrlrange="-12.0 12.0" ctrllimited="true"/>
+    <motor name="RB_Wheel" joint="RB_Wheel_Joint" ctrlrange="-5.0 5.0" ctrllimited="true"/>
+
+    <motor name="LB_Roll" joint="LB_Roll_Joint" ctrlrange="-5.0 5.0" ctrllimited="true"/>
+    <motor name="LB_Hip" joint="LB_Hip_Joint" ctrlrange="-8.0 8.0" ctrllimited="true"/>
+    <motor name="LB_Knee" joint="LB_Knee_Joint" ctrlrange="-12.0 12.0" ctrllimited="true"/>
+    <motor name="LB_Wheel" joint="LB_Wheel_Joint" ctrlrange="-5.0 5.0" ctrllimited="true"/>
+
+    <!-- <position name="RF_Roll" joint="RF_Roll_Joint" kp="30.0" kv="1.0" />
+    <position name="RF_Hip" joint="RF_Hip_Joint" kp="30.0" kv="1.0" />
+    <position name="RF_Knee" joint="RF_Knee_Joint" kp="60.0" kv="1.0" />
+    <velocity name="RF_Wheel" joint="RF_Wheel_Joint" kv="1.0" />
+
+    <position name="LF_Roll" joint="LF_Roll_Joint" kp="30.0" kv="1.0" />
+    <position name="LF_Hip" joint="LF_Hip_Joint" kp="30.0" kv="1.0" />
+    <position name="LF_Knee" joint="LF_Knee_Joint" kp="60.0" kv="1.0" />
+    <velocity name="LF_Wheel" joint="LF_Wheel_Joint" kv="1.0" />
+
+    <position name="RB_Roll" joint="RB_Roll_Joint" kp="30.0" kv="1.0" />
+    <position name="RB_Hip" joint="RB_Hip_Joint" kp="30.0" kv="1.0" />
+    <position name="RB_Knee" joint="RB_Knee_Joint" kp="60.0" kv="1.0" />
+    <velocity name="RB_Wheel" joint="RB_Wheel_Joint" kv="1.0" />
+
+    <position name="LB_Roll" joint="LB_Roll_Joint" kp="30.0" kv="1.0" />
+    <position name="LB_Hip" joint="LB_Hip_Joint" kp="30.0" kv="1.0" />
+    <position name="LB_Knee" joint="LB_Knee_Joint" kp="60.0" kv="1.0" />
+    <velocity name="LB_Wheel" joint="LB_Wheel_Joint" kv="1.0" /> -->
+  </actuator>
+
+  <sensor>
+    <jointpos name="RF_Roll_pos" joint="RF_Roll_Joint" />
+    <jointpos name="RF_Hip_pos" joint="RF_Hip_Joint" />
+    <jointpos name="RF_Knee_pos" joint="RF_Knee_Joint" />
+    <jointpos name="RF_Wheel_pos" joint="RF_Wheel_Joint" />
+    <jointpos name="LF_Roll_pos" joint="LF_Roll_Joint" />
+    <jointpos name="LF_Hip_pos" joint="LF_Hip_Joint" />
+    <jointpos name="LF_Knee_pos" joint="LF_Knee_Joint" />
+    <jointpos name="LF_Wheel_pos" joint="LF_Wheel_Joint" />
+    <jointpos name="RB_Roll_pos" joint="RB_Roll_Joint" />
+    <jointpos name="RB_Hip_pos" joint="RB_Hip_Joint" />
+    <jointpos name="RB_Knee_pos" joint="RB_Knee_Joint" />
+    <jointpos name="RB_Wheel_pos" joint="RB_Wheel_Joint" />
+    <jointpos name="LB_Roll_pos" joint="LB_Roll_Joint" />
+    <jointpos name="LB_Hip_pos" joint="LB_Hip_Joint" />
+    <jointpos name="LB_Knee_pos" joint="LB_Knee_Joint" />
+    <jointpos name="LB_Wheel_pos" joint="LB_Wheel_Joint" />
+
+    <jointvel name="RF_Roll_vel" joint="RF_Roll_Joint" />
+    <jointvel name="RF_Hip_vel" joint="RF_Hip_Joint" />
+    <jointvel name="RF_Knee_vel" joint="RF_Knee_Joint" />
+    <jointvel name="RF_Wheel_vel" joint="RF_Wheel_Joint" />
+    <jointvel name="LF_Roll_vel" joint="LF_Roll_Joint" />
+    <jointvel name="LF_Hip_vel" joint="LF_Hip_Joint" />
+    <jointvel name="LF_Knee_vel" joint="LF_Knee_Joint" />
+    <jointvel name="LF_Wheel_vel" joint="LF_Wheel_Joint" />
+    <jointvel name="RB_Roll_vel" joint="RB_Roll_Joint" />
+    <jointvel name="RB_Hip_vel" joint="RB_Hip_Joint" />
+    <jointvel name="RB_Knee_vel" joint="RB_Knee_Joint" />
+    <jointvel name="RB_Wheel_vel" joint="RB_Wheel_Joint" />
+    <jointvel name="LB_Roll_vel" joint="LB_Roll_Joint" />
+    <jointvel name="LB_Hip_vel" joint="LB_Hip_Joint" />
+    <jointvel name="LB_Knee_vel" joint="LB_Knee_Joint" />
+    <jointvel name="LB_Wheel_vel" joint="LB_Wheel_Joint" />
+
+    <!-- <accelerometer name="BodyAcc" site="imu" /> -->
+    <gyro name="angular-velocity" site="imu" />
+    <framequat name="orientation" objtype="site" objname="imu" />
+
+    <!-- <velocimeter name="BodyVel" site="imu" /> -->
+    <framepos name="position" objtype="site" objname="imu" />
+    <!-- <framepos name="RFEndPos" objtype="site" objname="RFEndSite" /> -->
+    <!-- <framepos name="LFEndPos" objtype="site" objname="LFEndSite" /> -->
+    <!-- <framepos name="RHEndPos" objtype="site" objname="RHEndSite" /> -->
+    <!-- <framepos name="LHEndPos" objtype="site" objname="LHEndSite" /> -->
+  </sensor>
+
+  <keyframe>
+    <key name="home" qpos="0 0 0.35 1 0 0 0 0.1 -0.5 1.0 0.0 -0.1 -0.5 1.0 0.0 0.1 0.5 -1.0 0.0 -0.1 0.5 -1.0 0.0" ctrl="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0" />
+  </keyframe>
 </mujoco>
