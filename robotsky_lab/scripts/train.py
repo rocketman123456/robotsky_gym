@@ -77,7 +77,8 @@ def train():
 
     env = env_class(env_cfg, args_cli.headless)
 
-    log_root_path = os.path.join("logs", agent_cfg.experiment_name)
+    log_root_path = os.path.join("/Workspace/zhangyufeng/robotsky_gym/logs", agent_cfg.experiment_name)
+    # log_root_path = os.path.join("logs", agent_cfg.experiment_name)
     log_root_path = os.path.abspath(log_root_path)
     print(f"[INFO] Logging experiment in directory: {log_root_path}")
 
@@ -100,6 +101,10 @@ def train():
     dump_yaml(os.path.join(log_dir, "params", "agent.yaml"), agent_cfg)
 
     runner.learn(num_learning_iterations=agent_cfg.max_iterations, init_at_random_ep_len=True)
+
+    runner.env.sim.clear_all_callbacks()
+    runner.env.sim.clear_instance()
+    runner.env.sim.stop()
 
 
 if __name__ == "__main__":

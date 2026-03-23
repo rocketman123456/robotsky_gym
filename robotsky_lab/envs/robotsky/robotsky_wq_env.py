@@ -183,7 +183,7 @@ class RobotSkyWQEnv(BaseEnv):
         phase = 2.0 * math.pi * self.episode_length_buf.to(dtype=torch.float32, device=self.device) * self.step_dt
         phase = phase / period
         s_a = torch.sin(phase).clamp(0.0, 1.0) * gate
-        s_b = -s_a  # 另一对角组，相差 π
+        s_b = torch.sin(phase + math.pi).clamp(0.0, 1.0) * gate # 另一对角组，相差 π
 
         overlay = torch.zeros_like(clipped_actions)
         amps = (cfg.roll_amp, cfg.hip_amp, cfg.knee_amp)
@@ -207,10 +207,10 @@ class RobotSkyWQEnv(BaseEnv):
         overlay[:, self.rb_leg_ids[1]] += amps[1] * s_b
 
         # knee
-        overlay[:, self.rf_leg_ids[2]] -= amps[2] * s_a
-        overlay[:, self.lb_leg_ids[2]] -= amps[2] * s_a
-        overlay[:, self.lf_leg_ids[2]] -= amps[2] * s_b
-        overlay[:, self.rb_leg_ids[2]] -= amps[2] * s_b
+        overlay[:, self.rf_leg_ids[2]] -= 2.0 * amps[2] * s_a
+        overlay[:, self.lb_leg_ids[2]] -= 2.0 * amps[2] * s_a
+        overlay[:, self.lf_leg_ids[2]] -= 2.0 * amps[2] * s_b
+        overlay[:, self.rb_leg_ids[2]] -= 2.0 * amps[2] * s_b
 
         return torch.clip(clipped_actions + overlay, -self.clip_actions, self.clip_actions)
 
