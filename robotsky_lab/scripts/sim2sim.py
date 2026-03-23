@@ -8,7 +8,6 @@ import csv
 import json
 from pathlib import Path
 import numpy as np
-from numpy.polynomial.legendre import leg2poly
 import torch
 import mujoco
 import mujoco.viewer
@@ -164,7 +163,11 @@ def quat_to_rpy(quat):
 
 
 def get_robot_preset(robot_type):
-    """Get preset configuration for different robot types."""
+    """Get preset configuration for different robot types.
+
+    robotsky_wq values align with RobotSkyWQFlatEnvCfg / WheelLeggedRobotCfg / RobotSkyWQEnv
+    (robotsky_wq_config.py, robotsky_wq_env.py) for sim2sim transfer.
+    """
     presets = {
         "robotsky_wq": {
             "model_path": "robotsky_lab/assets/robotsky_wq/mjcf/robotsky_wq.xml",
@@ -172,27 +175,41 @@ def get_robot_preset(robot_type):
             # 3 (ang_vel) + 3 (projected_gravity) + 3 (command) + 16 (joint_pos) + 16 (joint_vel) + 16 (action)
             "num_obs_per_step": 57,
             "actor_obs_history_length": 10,
-            "init_pos": [0.0, 0.0, 0.45],
+            # ROBOTSKY_WQ_CFG.init_state.pos
+            "init_pos": [0.0, 0.0, 0.35],
             "init_rot": [1.0, 0.0, 0.0, 0.0],
+            # Indices in *policy / Isaac* observation & action layout (RF,LF,RB,LB × Roll,Hip,Knee,Wheel)
             "leg_index": [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14],
             "wheel_index": [3, 7, 11, 15],
+            # NormalizationCfg.obs_scales (RobotSkyWQFlatEnvCfg)
+            "obs_scale_ang_vel": 1.0,  # 0.5,
+            "obs_scale_projected_gravity": 1.0,
+            "obs_scale_commands": 1.0,
+            "obs_scale_joint_pos": 1.0,
+            "obs_scale_joint_vel_leg": 0.05,  # 1.0 # 0.05,
+            "obs_scale_joint_vel_wheel": 0.1,
+            "obs_scale_actions": 1.0,
+            "clip_observations": 100.0,
+            # WheelLeggedRobotCfg
+            "action_scale": 0.25,
+            "wheel_action_scale": 4.0,
             "default_joint_angles": {
-                "RF_Roll_Joint": 0.1,
-                "RF_Hip_Joint": -0.5,
-                "RF_Knee_Joint": 1.0,
-                "RF_Wheel_Joint": 0.0,
-                "LF_Roll_Joint": -0.1,
-                "LF_Hip_Joint": -0.5,
-                "LF_Knee_Joint": 1.0,
-                "LF_Wheel_Joint": 0.0,
-                "RB_Roll_Joint": 0.1,
-                "RB_Hip_Joint": 0.5,
-                "RB_Knee_Joint": -1.0,
-                "RB_Wheel_Joint": 0.0,
-                "LB_Roll_Joint": -0.1,
-                "LB_Hip_Joint": 0.5,
-                "LB_Knee_Joint": -1.0,
-                "LB_Wheel_Joint": 0.0,
+                "RF_Roll": 0.1,
+                "RF_Hip": -0.5,
+                "RF_Knee": 1.0,
+                "RF_Wheel": 0.0,
+                "LF_Roll": -0.1,
+                "LF_Hip": -0.5,
+                "LF_Knee": 1.0,
+                "LF_Wheel": 0.0,
+                "RB_Roll": 0.1,
+                "RB_Hip": 0.5,
+                "RB_Knee": -1.0,
+                "RB_Wheel": 0.0,
+                "LB_Roll": -0.1,
+                "LB_Hip": 0.5,
+                "LB_Knee": -1.0,
+                "LB_Wheel": 0.0,
                 "default": 0.0,
             },
             "stiffness": {
@@ -223,9 +240,9 @@ def get_robot_preset(robot_type):
             #     "Wheel_Joint": "4310",
             #     "default": "4310",
             # },
-            # From terminal output:
-            # ISAAC to URDF indices: [3, 7, 11, 15, 1, 5, 9, 13, 2, 6, 10, 14, 0, 4, 8, 12]
-            # URDF to ISAAC indices: [12, 4, 8, 0, 13, 5, 9, 1, 14, 6, 10, 2, 15, 7, 11, 3]
+            # Same convention as RobotSkyWQEnv (isaac2urdf_idx / urdf2isaac_idx):
+            # - isaac_to_mujoco_idx[i] = MuJoCo actuator index for policy dimension i (gather obs in Isaac order)
+            # - mujoco_to_isaac_idx[u] = policy index that drives MuJoCo actuator u (scatter actions)
             "isaac_to_mujoco_idx": [3, 7, 11, 15, 1, 5, 9, 13, 2, 6, 10, 14, 0, 4, 8, 12],
             "mujoco_to_isaac_idx": [12, 4, 8, 0, 13, 5, 9, 1, 14, 6, 10, 2, 15, 7, 11, 3],
         },
@@ -356,10 +373,20 @@ def main():
     model_path = args.model_path if args.model_path is not None else robot_preset["model_path"]
     num_action = args.num_action if args.num_action is not None else robot_preset["num_action"]
     num_obs_per_step = args.num_obs_per_step if args.num_obs_per_step is not None else robot_preset["num_obs_per_step"]
-    action_scale = args.action_scale if args.action_scale is not None else 0.25
-    wheel_action_scale = args.wheel_action_scale if args.wheel_action_scale is not None else 4.0
+    action_scale = args.action_scale if args.action_scale is not None else robot_preset["action_scale"]
+    wheel_action_scale = args.wheel_action_scale if args.wheel_action_scale is not None else robot_preset["wheel_action_scale"]
     leg_index = np.array(robot_preset["leg_index"], dtype=np.int32)
     wheel_index = np.array(robot_preset["wheel_index"], dtype=np.int32)
+    obs_s = {
+        "ang_vel": robot_preset["obs_scale_ang_vel"],
+        "projected_gravity": robot_preset["obs_scale_projected_gravity"],
+        "commands": robot_preset["obs_scale_commands"],
+        "joint_pos": robot_preset["obs_scale_joint_pos"],
+        "joint_vel_leg": robot_preset["obs_scale_joint_vel_leg"],
+        "joint_vel_wheel": robot_preset["obs_scale_joint_vel_wheel"],
+        "actions": robot_preset["obs_scale_actions"],
+    }
+    clip_obs = robot_preset["clip_observations"]
 
     print(f"[INFO] Robot type: {args.robot_type}")
     print(f"[INFO] Model path: {model_path}")
@@ -446,6 +473,11 @@ def main():
         if not found:
             raise ValueError(f"PD gain of joint {actuator_name} were not defined")
 
+    print(f"Default dof pos: {default_dof_pos}")
+    print(f"Dof stiffness: {dof_stiffness}")
+    print(f"Dof damping: {dof_damping}")
+    print(f"Dof friction: {dof_friction}")
+
     # Set initial state
     mj_data.qpos = np.concatenate(
         [
@@ -468,7 +500,7 @@ def main():
     paused = False
     space_pressed_last = False  # Track space key state to detect press event
 
-    # Get joint index mappings
+    # Isaac <-> MuJoCo permutation (see preset comments; matches env print isaac2urdf / urdf2isaac)
     mujoco_to_isaac_idx = np.array(robot_preset["mujoco_to_isaac_idx"], dtype=np.int32)
     isaac_to_mujoco_idx = np.array(robot_preset["isaac_to_mujoco_idx"], dtype=np.int32)
 
@@ -556,61 +588,59 @@ def main():
                 # Compute observations and actions at decimation rate
                 if it % args.decimation == 0:
                     obs = np.zeros(num_obs_per_step, dtype=np.float32)
-                    obs[0:3] = base_ang_vel * 1.0
-                    obs[3:6] = projected_gravity * 1.0
-                    obs[6] = lin_vel_x
-                    obs[7] = lin_vel_y
-                    obs[8] = ang_vel_yaw
+                    # RobotSkyWQEnv.compute_current_observations + NormalizationCfg.obs_scales
+                    obs[0:3] = base_ang_vel * obs_s["ang_vel"]
+                    obs[3:6] = projected_gravity * obs_s["projected_gravity"]
+                    cmd = np.array([lin_vel_x, lin_vel_y, ang_vel_yaw], dtype=np.float32) * obs_s["commands"]
+                    obs[6:9] = cmd
 
-                    # Map joint positions and velocities
-                    # Structure: obs[9:9+num_actions] = joint_pos, obs[9+num_actions:9+2*num_actions] = joint_vel, obs[9+2*num_actions:9+3*num_actions] = actions
-                    if len(mujoco_to_isaac_idx) >= num_action:
-                        joint_pos = (dof_pos - default_dof_pos)[mujoco_to_isaac_idx[:num_action]] * 1.0
-                        joint_pos[mujoco_to_isaac_idx[wheel_index]] = 0.0
+                    # Isaac-order joints: gather with isaac_to_mujoco_idx[i] = MuJoCo index for policy dim i
+                    # Structure: obs[9:9+N] joint_pos, [9+N:9+2N] joint_vel, [9+2N:9+3N] last action
+                    if len(isaac_to_mujoco_idx) >= num_action:
+                        i2m = isaac_to_mujoco_idx[:num_action]
+                        joint_pos = (dof_pos - default_dof_pos)[i2m] * obs_s["joint_pos"]
+                        joint_pos[wheel_index] = 0.0
                         obs[9 : 9 + num_action] = joint_pos
-                        joint_vel = dof_vel[mujoco_to_isaac_idx[:num_action]] * 1.0  # 0.05
-                        joint_vel[mujoco_to_isaac_idx[wheel_index]] = dof_vel[mujoco_to_isaac_idx[wheel_index]] * 0.1
+                        joint_vel_raw = dof_vel[i2m]
+                        joint_vel = np.zeros(num_action, dtype=np.float32)
+                        joint_vel[leg_index] = joint_vel_raw[leg_index] * obs_s["joint_vel_leg"]
+                        joint_vel[wheel_index] = joint_vel_raw[wheel_index] * obs_s["joint_vel_wheel"]
                         obs[9 + num_action : 9 + 2 * num_action] = joint_vel
-                        obs[9 + 2 * num_action : 9 + 3 * num_action] = actions * 1.0
+                        obs[9 + 2 * num_action : 9 + 3 * num_action] = actions * obs_s["actions"]
                     else:
-                        # # Fallback when mapping is shorter than num_action
-                        # obs[9 : 9 + len(mujoco_to_isaac_idx)] = (dof_pos - default_dof_pos[mujoco_to_isaac_idx]) * 1.0
-                        # obs[9 + len(mujoco_to_isaac_idx) : 9 + 2 * len(mujoco_to_isaac_idx)] = dof_vel[mujoco_to_isaac_idx] * 0.1
-                        # obs[9 + 2 * len(mujoco_to_isaac_idx) : 9 + 2 * len(mujoco_to_isaac_idx) + num_action] = actions[:num_action] * 1.0
-                        print(f"WARNING: Mujoco to Isaac index mapping is shorter than num_action. Only applying to mapped indices. obs")
+                        print("WARNING: isaac_to_mujoco_idx shorter than num_action; joint obs not fully filled.")
                     # cmd_is_zero = abs(lin_vel_x) + abs(lin_vel_y) + abs(ang_vel_yaw) < 0.02
                     # obs[9 + 3 * num_action] = cmd_is_zero
 
                     # Update observation history
                     obs_history = np.roll(obs_history, shift=-num_obs_per_step)
                     obs_history[-num_obs_per_step:] = obs.copy()
-                    obs_history = np.clip(obs_history, -100.0, 100.0)
+                    obs_history = np.clip(obs_history, -clip_obs, clip_obs)
 
                     # Get action from policy
                     actions = policy(torch.tensor(obs_history, dtype=torch.float32)).detach().numpy().squeeze(0)
-                    actions[:] = np.clip(actions, -100.0, 100.0)
+                    actions[:] = np.clip(actions, -clip_obs, clip_obs)
+
+                    # print(f"Actions: {actions}")
+                    # print(f"Smoothed actions: {smoothed_actions}")
+                    # print(f"Obs history: {obs_history}")
+                    print(f"Dof pos: {dof_pos}")
+                    # print(f"Dof vel: {dof_vel}")
+                    # print(f"Base quat: {base_quat}")
+                    # print(f"Base ang vel: {base_ang_vel}")
+                    # print(f"Projected gravity: {projected_gravity}")
 
                 # Smooth actions
                 smoothed_actions = smoothed_actions * args.smooth_factor + actions * (1.0 - args.smooth_factor)
 
-                # Compute target positions
-                # isaac_to_mujoco_idx maps from Isaac action indices to MuJoCo actuator indices
+                # MuJoCo dof_targets: mujoco_to_isaac_idx[j] = policy index for MuJoCo actuator j (RobotSkyWQEnv step)
                 dof_targets[:] = default_dof_pos
-                # Apply actions to all actuators using the mapping (isaac_to_mujoco_idx should have length num_action)
-                if len(isaac_to_mujoco_idx) == num_action:
-                    dof_targets[:] += action_scale * smoothed_actions[isaac_to_mujoco_idx]
-                    dof_targets[wheel_index] = smoothed_actions[isaac_to_mujoco_idx[wheel_index]] * wheel_action_scale
-                elif len(isaac_to_mujoco_idx) > num_action:
-                    print(f"WARNING: Isaac to MuJoCo index mapping is larger than num_action.")
-                    # Use first num_action elements if mapping is longer
-                    dof_targets[:] += action_scale * smoothed_actions[isaac_to_mujoco_idx[:num_action]]
-                    # dof_targets[wheel_index] = smoothed_actions[wheel_index] * wheel_action_scale
+                if len(mujoco_to_isaac_idx) >= num_action:
+                    policy_on_mujoco = smoothed_actions[mujoco_to_isaac_idx[:num_action]]
+                    dof_targets[:] = default_dof_pos + action_scale * policy_on_mujoco
+                    dof_targets[wheel_index] = policy_on_mujoco[wheel_index] * wheel_action_scale
                 else:
-                    # # If mapping is shorter, only apply to mapped indices
-                    # for i, mujoco_idx in enumerate(isaac_to_mujoco_idx):
-                    #     if i < num_action:
-                    #         dof_targets[mujoco_idx] += action_scale * smoothed_actions[i]
-                    print(f"WARNING: Isaac to MuJoCo index mapping is shorter than num_action. Only applying to mapped indices.")
+                    print("WARNING: mujoco_to_isaac_idx shorter than num_action; targets may be wrong.")
 
                 # Apply PD control
                 # Note: Friction can be added with: -dof_friction * sign(dof_vel) * abs(dof_vel)
@@ -627,11 +657,13 @@ def main():
                 #         motor_configs,
                 #     )
 
-                mj_data.ctrl = np.clip(
-                    ctrl_torque,
-                    mj_model.actuator_ctrlrange[:, 0],
-                    mj_model.actuator_ctrlrange[:, 1],
-                )
+                dof_targets[:] = default_dof_pos
+                mj_data.ctrl = dof_targets
+                # mj_data.ctrl = np.clip(
+                #     ctrl_torque,
+                #     mj_model.actuator_ctrlrange[:, 0],
+                #     mj_model.actuator_ctrlrange[:, 1],
+                # )
 
                 # Step simulation
                 mujoco.mj_step(mj_model, mj_data)

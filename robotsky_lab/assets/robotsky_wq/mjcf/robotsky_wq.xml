@@ -1,8 +1,7 @@
 <mujoco model="robotsky_wq">
   <compiler angle="radian" meshdir="../meshes/" autolimits="true" />
-  <option timestep="0.002" integrator="implicit" />
-  <option cone="elliptic" impratio="100" />
-
+  <option timestep="0.005" integrator="implicit" />
+  <!-- <option cone="elliptic" impratio="100" /> -->
   <!-- <statistic meansize="0.105494" extent="0.640936" center="0 0 0.0535"/> -->
 
   <asset>
@@ -34,7 +33,7 @@
 
   <worldbody>
     <light name="top" pos="0 0 10" castshadow="false" />
-    <geom size="10 10 .01" type="plane" pos="0 0 0" material="grid" contype="1" conaffinity="1" friction="0.8 0.1 0.001" />
+    <geom size="10 10 .01" type="plane" pos="0 0 0" material="grid" contype="1" conaffinity="1" friction="1.2 0.1 0.001" />
     <!-- <geom size="10 10 .01" type="plane" pos="0 0 0" material="grid" /> -->
 
     <body name="base_link">
@@ -130,7 +129,7 @@
   </worldbody>
 
   <actuator>
-    <motor name="RF_Roll" joint="RF_Roll_Joint" ctrlrange="-5.0 5.0" ctrllimited="true"/>
+    <!-- <motor name="RF_Roll" joint="RF_Roll_Joint" ctrlrange="-5.0 5.0" ctrllimited="true"/>
     <motor name="RF_Hip" joint="RF_Hip_Joint" ctrlrange="-8.0 8.0" ctrllimited="true"/>
     <motor name="RF_Knee" joint="RF_Knee_Joint" ctrlrange="-12.0 12.0" ctrllimited="true"/>
     <motor name="RF_Wheel" joint="RF_Wheel_Joint" ctrlrange="-5.0 5.0" ctrllimited="true"/>
@@ -148,27 +147,27 @@
     <motor name="LB_Roll" joint="LB_Roll_Joint" ctrlrange="-5.0 5.0" ctrllimited="true"/>
     <motor name="LB_Hip" joint="LB_Hip_Joint" ctrlrange="-8.0 8.0" ctrllimited="true"/>
     <motor name="LB_Knee" joint="LB_Knee_Joint" ctrlrange="-12.0 12.0" ctrllimited="true"/>
-    <motor name="LB_Wheel" joint="LB_Wheel_Joint" ctrlrange="-5.0 5.0" ctrllimited="true"/>
+    <motor name="LB_Wheel" joint="LB_Wheel_Joint" ctrlrange="-5.0 5.0" ctrllimited="true"/> -->
 
-    <!-- <position name="RF_Roll" joint="RF_Roll_Joint" kp="30.0" kv="1.0" />
-    <position name="RF_Hip" joint="RF_Hip_Joint" kp="30.0" kv="1.0" />
-    <position name="RF_Knee" joint="RF_Knee_Joint" kp="60.0" kv="1.0" />
-    <velocity name="RF_Wheel" joint="RF_Wheel_Joint" kv="1.0" />
+    <position name="RF_Roll" joint="RF_Roll_Joint" kp="20.0" kv="1.0" forcerange="-5 5" forcelimited="true" />
+    <position name="RF_Hip" joint="RF_Hip_Joint" kp="20.0" kv="1.0" forcerange="-8 8" forcelimited="true" />
+    <position name="RF_Knee" joint="RF_Knee_Joint" kp="40.0" kv="1.0" forcerange="-12 12" forcelimited="true" />
+    <velocity name="RF_Wheel" joint="RF_Wheel_Joint" kv="1.0" forcerange="-5 5" forcelimited="true" />
 
-    <position name="LF_Roll" joint="LF_Roll_Joint" kp="30.0" kv="1.0" />
-    <position name="LF_Hip" joint="LF_Hip_Joint" kp="30.0" kv="1.0" />
-    <position name="LF_Knee" joint="LF_Knee_Joint" kp="60.0" kv="1.0" />
-    <velocity name="LF_Wheel" joint="LF_Wheel_Joint" kv="1.0" />
+    <position name="LF_Roll" joint="LF_Roll_Joint" kp="20.0" kv="1.0" forcerange="-5 5" forcelimited="true" />
+    <position name="LF_Hip" joint="LF_Hip_Joint" kp="20.0" kv="1.0" forcerange="-8 8" forcelimited="true" />
+    <position name="LF_Knee" joint="LF_Knee_Joint" kp="40.0" kv="1.0" forcerange="-12 12" forcelimited="true" />
+    <velocity name="LF_Wheel" joint="LF_Wheel_Joint" kv="1.0" forcerange="-5 5" forcelimited="true" />
 
-    <position name="RB_Roll" joint="RB_Roll_Joint" kp="30.0" kv="1.0" />
-    <position name="RB_Hip" joint="RB_Hip_Joint" kp="30.0" kv="1.0" />
-    <position name="RB_Knee" joint="RB_Knee_Joint" kp="60.0" kv="1.0" />
-    <velocity name="RB_Wheel" joint="RB_Wheel_Joint" kv="1.0" />
+    <position name="RB_Roll" joint="RB_Roll_Joint" kp="20.0" kv="1.0" forcerange="-5 5" forcelimited="true" />
+    <position name="RB_Hip" joint="RB_Hip_Joint" kp="20.0" kv="1.0" forcerange="-8 8" forcelimited="true" />
+    <position name="RB_Knee" joint="RB_Knee_Joint" kp="40.0" kv="1.0" forcerange="-12 12" forcelimited="true" />
+    <velocity name="RB_Wheel" joint="RB_Wheel_Joint" kv="1.0" forcerange="-5 5" forcelimited="true" />
 
-    <position name="LB_Roll" joint="LB_Roll_Joint" kp="30.0" kv="1.0" />
-    <position name="LB_Hip" joint="LB_Hip_Joint" kp="30.0" kv="1.0" />
-    <position name="LB_Knee" joint="LB_Knee_Joint" kp="60.0" kv="1.0" />
-    <velocity name="LB_Wheel" joint="LB_Wheel_Joint" kv="1.0" /> -->
+    <position name="LB_Roll" joint="LB_Roll_Joint" kp="20.0" kv="1.0" forcerange="-5 5" forcelimited="true" />
+    <position name="LB_Hip" joint="LB_Hip_Joint" kp="20.0" kv="1.0" forcerange="-8 8" forcelimited="true" />
+    <position name="LB_Knee" joint="LB_Knee_Joint" kp="40.0" kv="1.0" forcerange="-12 12" forcelimited="true" />
+    <velocity name="LB_Wheel" joint="LB_Wheel_Joint" kv="1.0" forcerange="-5 5" forcelimited="true" />
   </actuator>
 
   <sensor>
