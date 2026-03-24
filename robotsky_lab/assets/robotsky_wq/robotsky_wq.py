@@ -82,8 +82,8 @@ ROBOTSKY_WQ_CFG = ArticulationCfg(
             joint_names_expr=[".*Wheel_Joint.*"],
             effort_limit_sim=5.0,
             velocity_limit_sim=10.0,
-            stiffness={".*Wheel_Joint.*": 0.0},
-            damping={".*Wheel_Joint.*": 2.0},
+            stiffness={".*Wheel_Joint.*": 4.0},
+            damping={".*Wheel_Joint.*": 0.1},
         ),
     },
 )

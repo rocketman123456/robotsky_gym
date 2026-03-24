@@ -52,7 +52,7 @@
     <parent link="base_link" />
     <child link="RF_Roll_Link" />
     <axis xyz="1 0 0" />
-    <limit lower="-0.5" upper="1.57" effort="7" velocity="12" />
+    <limit lower="-0.5" upper="1.57" effort="5" velocity="10" />
   </joint>
   <link name="RF_Hip_Link">
     <inertial>
@@ -81,7 +81,7 @@
     <parent link="RF_Roll_Link" />
     <child link="RF_Hip_Link" />
     <axis xyz="0 1 0" />
-    <limit lower="-3.14" upper="0.01" effort="14" velocity="30" />
+    <limit lower="-3.14" upper="0.01" effort="8" velocity="20" />
   </joint>
   <link name="RF_Knee_Link">
     <inertial>
@@ -110,7 +110,7 @@
     <parent link="RF_Hip_Link" />
     <child link="RF_Knee_Link" />
     <axis xyz="0 1 0" />
-    <limit lower="-0.01" upper="3.14" effort="17" velocity="30" />
+    <limit lower="-0.01" upper="3.14" effort="12" velocity="20" />
   </joint>
   <link name="RF_Wheel_Link">
     <inertial>
@@ -150,12 +150,12 @@
       </geometry>
     </collision> -->
   </link>
-  <joint name="RF_Wheel_Joint" type="revolute">
+  <joint name="RF_Wheel_Joint" type="continuous">
     <origin xyz="0.16 -0.04 0" rpy="0 0 0" />
     <parent link="RF_Knee_Link" />
     <child link="RF_Wheel_Link" />
     <axis xyz="0 1 0" />
-    <limit lower="-300000000" upper="300000000" effort="7" velocity="12" />
+    <limit effort="5" velocity="10" />
   </joint>
   <link name="LF_Roll_Link">
     <inertial>
@@ -184,7 +184,7 @@
     <parent link="base_link" />
     <child link="LF_Roll_Link" />
     <axis xyz="1 0 0" />
-    <limit lower="-1.57" upper="0.5" effort="7" velocity="12" />
+    <limit lower="-1.57" upper="0.5" effort="5" velocity="10" />
   </joint>
   <link name="LF_Hip_Link">
     <inertial>
@@ -213,7 +213,7 @@
     <parent link="LF_Roll_Link" />
     <child link="LF_Hip_Link" />
     <axis xyz="0 1 0" />
-    <limit lower="-3.14" upper="0.01" effort="14" velocity="30" />
+    <limit lower="-3.14" upper="0.01" effort="8" velocity="20" />
   </joint>
   <link name="LF_Knee_Link">
     <inertial>
@@ -242,7 +242,7 @@
     <parent link="LF_Hip_Link" />
     <child link="LF_Knee_Link" />
     <axis xyz="0 1 0" />
-    <limit lower="-0.01" upper="3.14" effort="17" velocity="30" />
+    <limit lower="-0.01" upper="3.14" effort="12" velocity="20" />
   </joint>
   <link name="LF_Wheel_Link">
     <inertial>
@@ -282,12 +282,12 @@
       </geometry>
     </collision> -->
   </link>
-  <joint name="LF_Wheel_Joint" type="revolute">
+  <joint name="LF_Wheel_Joint" type="continuous">
     <origin xyz="0.16 0.04 0" rpy="0 0 0" />
     <parent link="LF_Knee_Link" />
     <child link="LF_Wheel_Link" />
     <axis xyz="0 1 0" />
-    <limit lower="-300000000" upper="300000000" effort="7" velocity="12" />
+    <limit effort="5" velocity="10" />
   </joint>
   <link name="RB_Roll_Link">
     <inertial>
@@ -316,7 +316,7 @@
     <parent link="base_link" />
     <child link="RB_Roll_Link" />
     <axis xyz="1 0 0" />
-    <limit lower="-0.5" upper="1.57" effort="7" velocity="12" />
+    <limit lower="-0.5" upper="1.57" effort="5" velocity="10" />
   </joint>
   <link name="RB_Hip_Link">
     <inertial>
@@ -345,7 +345,7 @@
     <parent link="RB_Roll_Link" />
     <child link="RB_Hip_Link" />
     <axis xyz="0 1 0" />
-    <limit lower="-0.01" upper="3.14" effort="14" velocity="30" />
+    <limit lower="-0.01" upper="3.14" effort="8" velocity="20" />
   </joint>
   <link name="RB_Knee_Link">
     <inertial>
@@ -374,7 +374,7 @@
     <parent link="RB_Hip_Link" />
     <child link="RB_Knee_Link" />
     <axis xyz="0 1 0" />
-    <limit lower="-3.14" upper="0.01" effort="17" velocity="30" />
+    <limit lower="-3.14" upper="0.01" effort="12" velocity="20" />
   </joint>
   <link name="RB_Wheel_Link">
     <inertial>
@@ -414,12 +414,12 @@
       </geometry>
     </collision> -->
   </link>
-  <joint name="RB_Wheel_Joint" type="revolute">
+  <joint name="RB_Wheel_Joint" type="continuous">
     <origin xyz="-0.16 -0.04 0" rpy="0 0 0" />
     <parent link="RB_Knee_Link" />
     <child link="RB_Wheel_Link" />
     <axis xyz="0 1 0" />
-    <limit lower="-300000000" upper="300000000" effort="7" velocity="12" />
+    <limit effort="5" velocity="10" />
   </joint>
   <link name="LB_Roll_Link">
     <inertial>
@@ -448,7 +448,7 @@
     <parent link="base_link" />
     <child link="LB_Roll_Link" />
     <axis xyz="1 0 0" />
-    <limit lower="-1.57" upper="0.5" effort="7" velocity="12" />
+    <limit lower="-1.57" upper="0.5" effort="5" velocity="10" />
   </joint>
   <link name="LB_Hip_Link">
     <inertial>
@@ -477,7 +477,7 @@
     <parent link="LB_Roll_Link" />
     <child link="LB_Hip_Link" />
     <axis xyz="0 1 0" />
-    <limit lower="-0.01" upper="3.14" effort="14" velocity="30" />
+    <limit lower="-0.01" upper="3.14" effort="8" velocity="20" />
   </joint>
   <link name="LB_Knee_Link">
     <inertial>
@@ -506,7 +506,7 @@
     <parent link="LB_Hip_Link" />
     <child link="LB_Knee_Link" />
     <axis xyz="0 1 0" />
-    <limit lower="-3.14" upper="0.01" effort="17" velocity="30" />
+    <limit lower="-3.14" upper="0.01" effort="12" velocity="20" />
   </joint>
   <link name="LB_Wheel_Link">
     <inertial>
@@ -546,11 +546,11 @@
       </geometry>
     </collision> -->
   </link>
-  <joint name="LB_Wheel_Joint" type="revolute">
+  <joint name="LB_Wheel_Joint" type="continuous">
     <origin xyz="-0.16 0.04 0" rpy="0 0 0" />
     <parent link="LB_Knee_Link" />
     <child link="LB_Wheel_Link" />
     <axis xyz="0 1 0" />
-    <limit lower="-300000000" upper="300000000" effort="7" velocity="12" />
+    <limit effort="5" velocity="10" />
   </joint>
 </robot>

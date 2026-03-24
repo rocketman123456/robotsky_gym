@@ -183,7 +183,7 @@ class RobotSkyWQEnv(BaseEnv):
         phase = 2.0 * math.pi * self.episode_length_buf.to(dtype=torch.float32, device=self.device) * self.step_dt
         phase = phase / period
         s_a = torch.sin(phase).clamp(0.0, 1.0) * gate
-        s_b = torch.sin(phase + math.pi).clamp(0.0, 1.0) * gate # 另一对角组，相差 π
+        s_b = torch.sin(phase + math.pi).clamp(0.0, 1.0) * gate  # 另一对角组，相差 π
 
         overlay = torch.zeros_like(clipped_actions)
         amps = (cfg.roll_amp, cfg.hip_amp, cfg.knee_amp)
@@ -228,12 +228,13 @@ class RobotSkyWQEnv(BaseEnv):
         # Leg joints → position target
         leg_pos_target = clipped_actions[:, self.leg_joint_ids] * self.action_scale + self.robot.data.default_joint_pos[:, self.leg_joint_ids]
         # Wheel joints → velocity target
-        wheel_vel_target = clipped_actions[:, self.wheel_joint_ids] * self.wheel_action_scale
+        wheel_vel_target = clipped_actions[:, self.wheel_joint_ids] * self.wheel_action_scale + self.robot.data.default_joint_pos[:, self.wheel_joint_ids]
 
         for _ in range(self.cfg.sim.decimation):
             self.sim_step_counter += 1
             self.robot.set_joint_position_target(leg_pos_target, joint_ids=self.leg_joint_ids)
-            self.robot.set_joint_velocity_target(wheel_vel_target, joint_ids=self.wheel_joint_ids)
+            self.robot.set_joint_position_target(wheel_vel_target, joint_ids=self.wheel_joint_ids)
+            # self.robot.set_joint_velocity_target(wheel_vel_target, joint_ids=self.wheel_joint_ids)
             self.scene.write_data_to_sim()
             self.sim.step(render=False)
             self.scene.update(dt=self.physics_dt)
