@@ -3,10 +3,19 @@
 # Modifications are licensed under BSD-3-Clause.
 
 from isaaclab.managers import RewardTermCfg as RewTerm
+from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers.scene_entity_cfg import SceneEntityCfg
 from isaaclab.utils import configclass
 
 from dataclasses import MISSING
+
+from isaaclab_rl.rsl_rl import (  # noqa:F401
+    RslRlOnPolicyRunnerCfg,
+    RslRlPpoActorCriticCfg,
+    RslRlPpoAlgorithmCfg,
+    RslRlRndCfg,
+    RslRlSymmetryCfg,
+)
 
 import robotsky_lab.mdp as mdp
 from robotsky_lab.assets.robotsky_wq.robotsky_wq import ROBOTSKY_WQ_CFG
@@ -18,8 +27,6 @@ from robotsky_lab.envs.base.base_env_config import (  # noqa:F401
     ObsScalesCfg,
     RewardCfg,
     RobotCfg,
-    RslRlPpoActorCriticCfg,
-    RslRlPpoAlgorithmCfg,
     BaseSceneCfg,
     CommandsCfg,
     NoiseCfg,
@@ -27,7 +34,6 @@ from robotsky_lab.envs.base.base_env_config import (  # noqa:F401
     NoiseScalesCfg,
     DomainRandCfg,
     EventCfg,
-    EventTerm,
     ActionDelayCfg,
     SimCfg,
     PhysxCfg,
@@ -99,7 +105,7 @@ class RobotSkyWQRewardCfg(RewardCfg):
     )
     base_height_l2 = RewTerm(
         func=mdp.base_height_l2,
-        weight=-0.1,  # -0.02 # -0.02 # -0.01
+        weight=-0.05,  # -0.1 # -0.02 # -0.01
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*base_link.*"),
             "sensor_cfg": None,  # SceneEntityCfg("height_scanner_base"),
@@ -142,13 +148,13 @@ class RobotSkyWQRewardCfg(RewardCfg):
             "max_reward": 400,
         },
     )
-    feet_contact_without_cmd = RewTerm(
-        func=mdp.feet_contact_without_cmd,
-        weight=0.1,
-        params={
-            "sensor_cfg": SceneEntityCfg("contact_sensor", body_names=".*Wheel_Link.*"),
-        },
-    )
+    # feet_contact_without_cmd = RewTerm(
+    #     func=mdp.feet_contact_without_cmd,
+    #     weight=0.1,
+    #     params={
+    #         "sensor_cfg": SceneEntityCfg("contact_sensor", body_names=".*Wheel_Link.*"),
+    #     },
+    # )
     # feet_height = RewTerm(
     #     func=mdp.feet_height,
     #     weight=0.0,
@@ -175,26 +181,37 @@ class RobotSkyWQRewardCfg(RewardCfg):
         weight=-2.5e-7,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
     )
-    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.01)
+    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.001)  # -0.01
     joint_deviation_legs = RewTerm(
         func=mdp.joint_deviation_l1,
         weight=-0.02,  # -0.05 # -0.02 # -0.5 # -0.2 # -0.02
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
     )
-    # joint_velocity_l2 = RewTerm(
-    #     func=mdp.joint_vel_l2,
-    #     weight=-1.0e-3,
-    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
-    # )
+    joint_velocity_l2 = RewTerm(
+        func=mdp.joint_vel_l2,
+        weight=-1.0e-3,  # -1.0e-4 # -1.0e-3
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
+    )
     joint_pos_limits = RewTerm(
         func=mdp.joint_pos_limits,
-        weight=-5.0,  # -2.0
+        weight=-1.0,  # -5.0 # -2.0
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
     )
     joint_power = RewTerm(
         func=mdp.joint_power,
-        weight=-2.0e-5,
+        weight=-1.0e-6,  # -2.0e-5
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
+    )
+    joint_mirror = RewTerm(
+        func=mdp.joint_mirror,
+        weight=-0.05,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+            "mirror_joints": [
+                ["LF_(Roll|Hip|Knee).*", "RB_(Roll|Hip|Knee).*"],
+                ["RF_(Roll|Hip|Knee).*", "LB_(Roll|Hip|Knee).*"],
+            ],
+        },
     )
     stand_still = RewTerm(
         func=mdp.stand_still,
@@ -218,7 +235,7 @@ class RobotSkyWQRewardCfg(RewardCfg):
     )
     wheel_acc_l2 = RewTerm(
         func=mdp.joint_acc_l2,
-        weight=-2.5e-9,  # -1.0e-7 # -1.0e-6
+        weight=-2.5e-8,  # -2.5e-9 # -1.0e-7 # -1.0e-6
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Wheel_Joint.*"])},
     )
     # wheel_power = RewTerm(
@@ -357,7 +374,7 @@ class RobotSkyWQFlatAgentCfg(BaseAgentCfg):
 
     policy = RslRlPpoActorCriticCfg(
         class_name="ActorCritic",
-        init_noise_std=1.0,
+        init_noise_std=1.0,  # 1.5 # 0.1 # 1.0
         noise_std_type="scalar",
         actor_hidden_dims=[512, 256, 128],
         critic_hidden_dims=[512, 256, 128],
@@ -368,7 +385,7 @@ class RobotSkyWQFlatAgentCfg(BaseAgentCfg):
         value_loss_coef=1.0,
         use_clipped_value_loss=True,
         clip_param=0.2,
-        entropy_coef=0.005,
+        entropy_coef=0.005,  # 0.002 # 0.0 # 0.01 # 0.005 # 0.001
         num_learning_epochs=5,
         num_mini_batches=4,
         learning_rate=1.0e-3,
@@ -378,7 +395,13 @@ class RobotSkyWQFlatAgentCfg(BaseAgentCfg):
         desired_kl=0.01,
         max_grad_norm=1.0,
         normalize_advantage_per_mini_batch=False,
-        symmetry_cfg=None,  # RslRlSymmetryCfg()
+        # symmetry_cfg=None,
+        symmetry_cfg=RslRlSymmetryCfg(
+            use_data_augmentation=True,
+            use_mirror_loss=True,
+            data_augmentation_func="robotsky_lab.envs.robotsky.robotsky_wq_symmetry:compute_symmetric_states",
+            mirror_loss_coeff=0.1,
+        ),
         rnd_cfg=None,  # RslRlRndCfg()
     )
 
@@ -415,6 +438,7 @@ class RobotSkyWQRoughAgentCfg(BaseAgentCfg):
         self.num_steps_per_env = 24
         self.max_iterations = 60001
         self.empirical_normalization = False
+        # self.algorithm.symmetry_cfg = _ROBOTSKY_WQ_SYMMETRY_CFG
 
         # self.policy.class_name = "ActorCriticRecurrent"
         # self.policy.actor_hidden_dims = [256, 256, 128]

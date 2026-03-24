@@ -94,6 +94,23 @@ def joint_pos_penalty(
     return reward
 
 
+def joint_mirror(env: BaseEnv, asset_cfg: SceneEntityCfg, mirror_joints: list[list[str]]) -> torch.Tensor:
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    if not hasattr(env, "joint_mirror_joints_cache") or env.joint_mirror_joints_cache is None:
+        # Cache joint positions for all pairs
+        env.joint_mirror_joints_cache = [[asset.find_joints(joint_name) for joint_name in joint_pair] for joint_pair in mirror_joints]
+    reward = torch.zeros(env.num_envs, device=env.device)
+    # Iterate over all joint pairs
+    for joint_pair in env.joint_mirror_joints_cache:
+        # Calculate the difference for each pair and add to the total reward
+        diff = torch.sum(torch.square(asset.data.joint_pos[:, joint_pair[0][0]] - asset.data.joint_pos[:, joint_pair[1][0]]), dim=-1)
+        reward += diff
+    reward *= 1 / len(mirror_joints) if len(mirror_joints) > 0 else 0
+    reward *= torch.clamp(-env.scene["robot"].data.projected_gravity_b[:, 2], 0, 0.7) / 0.7
+    return reward
+
+
 def action_rate_l2(env: BaseEnv) -> torch.Tensor:
     return torch.sum(
         torch.square(env.action_buffer._circular_buffer.buffer[:, -1, :] - env.action_buffer._circular_buffer.buffer[:, -2, :]),
