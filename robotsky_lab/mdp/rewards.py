@@ -112,10 +112,7 @@ def joint_mirror(env: BaseEnv, asset_cfg: SceneEntityCfg, mirror_joints: list[li
 
 
 def action_rate_l2(env: BaseEnv) -> torch.Tensor:
-    return torch.sum(
-        torch.square(env.action_buffer._circular_buffer.buffer[:, -1, :] - env.action_buffer._circular_buffer.buffer[:, -2, :]),
-        dim=1,
-    )
+    return torch.sum(torch.square(env.action_buffer._circular_buffer.buffer[:, -1, :] - env.action_buffer._circular_buffer.buffer[:, -2, :]), dim=1)
 
 
 def undesired_contacts(env: BaseEnv, threshold: float, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
@@ -242,7 +239,7 @@ def feet_too_near_humanoid(env: BaseEnv, asset_cfg: SceneEntityCfg = SceneEntity
 
 def stand_still(
     env: BaseEnv,
-    command_threshold: float = 0.06,
+    command_threshold: float = 0.05,
     asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
 ) -> torch.Tensor:
     """Penalize offsets from the default joint positions when the command is very small."""
