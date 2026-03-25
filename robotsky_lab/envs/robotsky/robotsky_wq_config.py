@@ -185,7 +185,7 @@ class RobotSkyWQRewardCfg(RewardCfg):
     action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.02)  # -0.001 # -0.01
     joint_deviation_legs = RewTerm(
         func=mdp.joint_deviation_l1,
-        weight=-0.1,  # -0.05 # -0.02 # -0.5 # -0.2 # -0.02
+        weight=-0.02,  # -0.05 # -0.02 # -0.5 # -0.2 # -0.02
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
     )
     # joint_deviation_legs = RewTerm(
@@ -208,11 +208,16 @@ class RobotSkyWQRewardCfg(RewardCfg):
         weight=-5.0,  # -5.0 # -2.0
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
     )
-    # joint_power = RewTerm(
-    #     func=mdp.joint_power,
-    #     weight=-2.0e-5,  # -1.0e-6 # -2.0e-5
-    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
-    # )
+    joint_vel_limits = RewTerm(
+        func=mdp.joint_vel_limits,
+        weight=-0.1,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
+    )
+    joint_power = RewTerm(
+        func=mdp.joint_power,
+        weight=-1.0e-6,  # -1.0e-6 # -2.0e-5
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
+    )
     # joint_mirror = RewTerm(
     #     func=mdp.joint_mirror,
     #     weight=-0.01,  # -0.05
@@ -254,6 +259,11 @@ class RobotSkyWQRewardCfg(RewardCfg):
     #     weight=-2.5e-5,
     #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Wheel_Joint.*"])},
     # )
+    wheel_vel_limits = RewTerm(
+        func=mdp.joint_vel_limits,
+        weight=-0.1,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Wheel_Joint.*"])},
+    )
 
 
 @configclass
@@ -406,19 +416,19 @@ class RobotSkyWQFlatAgentCfg(BaseAgentCfg):
         desired_kl=0.01,
         max_grad_norm=1.0,
         normalize_advantage_per_mini_batch=False,
-        symmetry_cfg=None,
-        # symmetry_cfg=RslRlSymmetryCfg(
-        #     use_data_augmentation=True,
-        #     use_mirror_loss=True,
-        #     data_augmentation_func="robotsky_lab.envs.robotsky.robotsky_wq_symmetry:compute_symmetric_states",
-        #     mirror_loss_coeff=0.01,
-        # ),
+        # symmetry_cfg=None,
+        symmetry_cfg=RslRlSymmetryCfg(
+            use_data_augmentation=True,
+            use_mirror_loss=True,
+            data_augmentation_func="robotsky_lab.envs.robotsky.robotsky_wq_symmetry:compute_symmetric_states",
+            mirror_loss_coeff=0.01,
+        ),
         rnd_cfg=None,  # RslRlRndCfg()
     )
 
     def __post_init__(self):
         super().__post_init__()
-        self.num_steps_per_env = 24
+        self.num_steps_per_env = 16  # 24
         self.max_iterations = 20001
         self.empirical_normalization = False
         self.save_interval = 1000
