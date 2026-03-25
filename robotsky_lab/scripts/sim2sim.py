@@ -43,6 +43,16 @@ def quat_to_rpy(quat):
     return roll, pitch, yaw
 
 
+# MuJoCo <framequat> sensordata is w,x,y,z; quat_rotate_inverse / quat_to_rpy use x,y,z,w.
+def _framequat_xyzw(sensor_data) -> np.ndarray:
+    return np.asarray(sensor_data, dtype=np.float64)[[1, 2, 3, 0]].astype(np.float32)
+
+
+# With robotsky_description/mjcf/robotsky_wq.xml and robotsky_sim MujocoSim.get_state()
+MJCF_QUAT_SENSOR = "orientation"
+MJCF_GYRO_SENSOR = "angular-velocity"
+
+
 # def load_motor_config(config_path: str) -> dict:
 #     """Load motor configuration from JSON file."""
 #     with open(config_path, "r", encoding="utf-8") as f:
@@ -170,23 +180,24 @@ def get_robot_preset(robot_type):
     """
     presets = {
         "robotsky_wq": {
+            # Fallback if workspace MJCF is missing (see main() for src/robotsky_description default).
             "model_path": "robotsky_lab/assets/robotsky_wq/mjcf/robotsky_wq.xml",
             "num_action": 16,
             # 3 (ang_vel) + 3 (projected_gravity) + 3 (command) + 16 (joint_pos) + 16 (joint_vel) + 16 (action)
             "num_obs_per_step": 57,
             "actor_obs_history_length": 10,
             # ROBOTSKY_WQ_CFG.init_state.pos
-            "init_pos": [0.0, 0.0, 0.5],
+            "init_pos": [0.0, 0.0, 0.35],
             "init_rot": [1.0, 0.0, 0.0, 0.0],
-            # Indices in *policy / Isaac* observation & action layout (RF,LF,RB,LB × Roll,Hip,Knee,Wheel)
-            "leg_index": [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14],
-            "wheel_index": [3, 7, 11, 15],
-            # NormalizationCfg.obs_scales (RobotSkyWQFlatEnvCfg)
-            "obs_scale_ang_vel": 0.5,  # 1.0 # 0.5,
+            # Motor/MuJoCo actuator indices for wheels (same as rl_controller wheel_joint_indices).
+            # Isaac-order leg/wheel splits for obs are derived from isaac_to_mujoco_idx in main().
+            "wheel_joint_indices_motor": [3, 7, 11, 15],
+            # Defaults match robotsky_rl_controller rl_controller_node.py
+            "obs_scale_ang_vel": 1.0,
             "obs_scale_projected_gravity": 1.0,
             "obs_scale_commands": 1.0,
             "obs_scale_joint_pos": 1.0,
-            "obs_scale_joint_vel_leg": 0.05,  # 0.05,
+            "obs_scale_joint_vel_leg": 1.0,
             "obs_scale_joint_vel_wheel": 0.1,
             "obs_scale_actions": 1.0,
             "clip_observations": 100.0,
@@ -376,8 +387,18 @@ def main():
     num_obs_per_step = args.num_obs_per_step if args.num_obs_per_step is not None else robot_preset["num_obs_per_step"]
     action_scale = args.action_scale if args.action_scale is not None else robot_preset["action_scale"]
     wheel_action_scale = args.wheel_action_scale if args.wheel_action_scale is not None else robot_preset["wheel_action_scale"]
-    leg_index = np.array(robot_preset["leg_index"], dtype=np.int32)
-    wheel_index = np.array(robot_preset["wheel_index"], dtype=np.int32)
+
+    # Same logic as RLControllerNode: MOTOR_TO_ISAAC at isaac dim i -> motor index isaac_to_mujoco_idx[i].
+    isaac_to_mujoco_idx = np.array(robot_preset["isaac_to_mujoco_idx"], dtype=np.int32)
+    wheel_joint_motor = np.array(robot_preset["wheel_joint_indices_motor"], dtype=np.int32)
+    wheel_motor_set = set(int(x) for x in wheel_joint_motor.tolist())
+    wheel_index_isaac = np.array(
+        [i for i in range(num_action) if int(isaac_to_mujoco_idx[i]) in wheel_motor_set],
+        dtype=np.int32,
+    )
+    _wheel_isaac_set = set(int(x) for x in wheel_index_isaac.tolist())
+    leg_index_isaac = np.array([i for i in range(num_action) if i not in _wheel_isaac_set], dtype=np.int32)
+    wheel_index_motor = wheel_joint_motor
     obs_s = {
         "ang_vel": robot_preset["obs_scale_ang_vel"],
         "projected_gravity": robot_preset["obs_scale_projected_gravity"],
@@ -582,9 +603,8 @@ def main():
                 # Get current state
                 dof_pos = mj_data.qpos.astype(np.float32)[7:]
                 dof_vel = mj_data.qvel.astype(np.float32)[6:]
-                base_quat = mj_data.sensor("orientation").data[[1, 2, 3, 0]].astype(np.float32)
-                # base_lin_vel = mj_data.sensor("linear-velocity").data.astype(np.float32)
-                base_ang_vel = mj_data.sensor("angular-velocity").data.astype(np.float32)
+                base_quat = _framequat_xyzw(mj_data.sensor(MJCF_QUAT_SENSOR).data)
+                base_ang_vel = mj_data.sensor(MJCF_GYRO_SENSOR).data.astype(np.float32)
                 projected_gravity = quat_rotate_inverse(base_quat, np.array([0.0, 0.0, -1.0]))
 
                 # Compute observations and actions at decimation rate
@@ -600,12 +620,12 @@ def main():
                     # Structure: obs[9:9+N] joint_pos, [9+N:9+2N] joint_vel, [9+2N:9+3N] last action
                     i2m = isaac_to_mujoco_idx[:num_action]
                     joint_pos = (dof_pos - default_dof_pos)[i2m] * obs_s["joint_pos"]
-                    joint_pos[wheel_index] = 0.0
+                    joint_pos[wheel_index_isaac] = 0.0
                     obs[9 : 9 + num_action] = joint_pos
                     joint_vel_raw = dof_vel[i2m]
                     joint_vel = np.zeros(num_action, dtype=np.float32)
-                    joint_vel[leg_index] = joint_vel_raw[leg_index] * obs_s["joint_vel_leg"]
-                    joint_vel[wheel_index] = joint_vel_raw[wheel_index] * obs_s["joint_vel_wheel"]
+                    joint_vel[leg_index_isaac] = joint_vel_raw[leg_index_isaac] * obs_s["joint_vel_leg"]
+                    joint_vel[wheel_index_isaac] = joint_vel_raw[wheel_index_isaac] * obs_s["joint_vel_wheel"]
                     obs[9 + num_action : 9 + 2 * num_action] = joint_vel
                     obs[9 + 2 * num_action : 9 + 3 * num_action] = actions * obs_s["actions"]
                     # cmd_is_zero = abs(lin_vel_x) + abs(lin_vel_y) + abs(ang_vel_yaw) < 0.02
@@ -627,12 +647,14 @@ def main():
                 dof_targets[:] = default_dof_pos
                 policy_on_mujoco = smoothed_actions[mujoco_to_isaac_idx[:num_action]]
                 dof_targets[:] = default_dof_pos + action_scale * policy_on_mujoco
-                dof_targets[wheel_index] = policy_on_mujoco[wheel_index] * wheel_action_scale
+                dof_targets[wheel_index_motor] = policy_on_mujoco[wheel_index_motor] * wheel_action_scale
 
                 # Apply PD control
                 # Note: Friction can be added with: -dof_friction * sign(dof_vel) * abs(dof_vel)
                 ctrl_torque = dof_stiffness * (dof_targets - dof_pos) - dof_damping * dof_vel
-                ctrl_torque[wheel_index] = dof_damping[wheel_index] * (dof_targets[wheel_index] - dof_vel[wheel_index])
+                ctrl_torque[wheel_index_motor] = dof_damping[wheel_index_motor] * (
+                    dof_targets[wheel_index_motor] - dof_vel[wheel_index_motor]
+                )
 
                 # Apply motor torque clipping based on velocity if enabled
                 # if args.enable_motor_clipping and "motor_mapping" in robot_preset:
@@ -660,8 +682,8 @@ def main():
                     # Get current state after step
                     current_dof_pos = mj_data.qpos.astype(np.float32)[7:]
                     current_dof_vel = mj_data.qvel.astype(np.float32)[6:]
-                    current_base_quat = mj_data.sensor("orientation").data[[1, 2, 3, 0]].astype(np.float32)
-                    current_base_ang_vel = mj_data.sensor("angular-velocity").data.astype(np.float32)
+                    current_base_quat = _framequat_xyzw(mj_data.sensor(MJCF_QUAT_SENSOR).data)
+                    current_base_ang_vel = mj_data.sensor(MJCF_GYRO_SENSOR).data.astype(np.float32)
                     current_projected_gravity = quat_rotate_inverse(current_base_quat, np.array([0.0, 0.0, -1.0]))
 
                     # IMU acceleration: use projected gravity * 9.81 (gravity in m/s^2)
