@@ -211,7 +211,10 @@ class RobotSkyWQRewardCfg(RewardCfg):
     joint_vel_limits = RewTerm(
         func=mdp.joint_vel_limits,
         weight=-0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"]),
+            "soft_ratio": 0.8,
+        },
     )
     joint_power = RewTerm(
         func=mdp.joint_power,
@@ -262,7 +265,10 @@ class RobotSkyWQRewardCfg(RewardCfg):
     wheel_vel_limits = RewTerm(
         func=mdp.joint_vel_limits,
         weight=-0.1,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Wheel_Joint.*"])},
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=[".*Wheel_Joint.*"]),
+            "soft_ratio": 0.9,
+        },
     )
 
 
@@ -416,13 +422,13 @@ class RobotSkyWQFlatAgentCfg(BaseAgentCfg):
         desired_kl=0.01,
         max_grad_norm=1.0,
         normalize_advantage_per_mini_batch=False,
-        # symmetry_cfg=None,
-        symmetry_cfg=RslRlSymmetryCfg(
-            use_data_augmentation=True,
-            use_mirror_loss=True,
-            data_augmentation_func="robotsky_lab.envs.robotsky.robotsky_wq_symmetry:compute_symmetric_states",
-            mirror_loss_coeff=0.01,
-        ),
+        symmetry_cfg=None,
+        # symmetry_cfg=RslRlSymmetryCfg(
+        #     use_data_augmentation=True,
+        #     use_mirror_loss=True,
+        #     data_augmentation_func="robotsky_lab.envs.robotsky.robotsky_wq_symmetry:compute_symmetric_states",
+        #     mirror_loss_coeff=0.01,
+        # ),
         rnd_cfg=None,  # RslRlRndCfg()
     )
 
