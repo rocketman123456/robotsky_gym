@@ -96,16 +96,16 @@ class RobotSkyWQRewardCfg(RewardCfg):
     track_lin_vel_xy_exp = RewTerm(
         func=mdp.track_lin_vel_xy_yaw_frame_exp,
         weight=3.0,
-        params={"std": 0.5},
+        params={"std": 0.25},
     )
     track_ang_vel_z_exp = RewTerm(
         func=mdp.track_ang_vel_z_world_exp,
         weight=2.0,
-        params={"std": 0.5},
+        params={"std": 0.25},
     )
     base_height_l2 = RewTerm(
         func=mdp.base_height_l2,
-        weight=-0.1,  # -0.1 # -0.02 # -0.01
+        weight=-0.02,  # -0.1 # -0.02 # -0.01
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*base_link.*"),
             "sensor_cfg": None,  # SceneEntityCfg("height_scanner_base"),
@@ -182,10 +182,10 @@ class RobotSkyWQRewardCfg(RewardCfg):
         weight=-2.5e-7,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
     )
-    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.025)  # -0.001 # -0.01
+    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.02)  # -0.001 # -0.01
     joint_deviation_legs = RewTerm(
         func=mdp.joint_deviation_l1,
-        weight=-0.05,  # -0.05 # -0.02 # -0.5 # -0.2 # -0.02
+        weight=-0.1,  # -0.05 # -0.02 # -0.5 # -0.2 # -0.02
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
     )
     # joint_deviation_legs = RewTerm(
@@ -208,22 +208,22 @@ class RobotSkyWQRewardCfg(RewardCfg):
         weight=-5.0,  # -5.0 # -2.0
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
     )
-    joint_power = RewTerm(
-        func=mdp.joint_power,
-        weight=-2.0e-5,  # -1.0e-6 # -2.0e-5
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
-    )
-    joint_mirror = RewTerm(
-        func=mdp.joint_mirror,
-        weight=-0.01,  # -0.05
-        params={
-            "asset_cfg": SceneEntityCfg("robot"),
-            "mirror_joints": [
-                ["LF_(Roll|Hip|Knee).*", "RB_(Roll|Hip|Knee).*"],
-                ["RF_(Roll|Hip|Knee).*", "LB_(Roll|Hip|Knee).*"],
-            ],
-        },
-    )
+    # joint_power = RewTerm(
+    #     func=mdp.joint_power,
+    #     weight=-2.0e-5,  # -1.0e-6 # -2.0e-5
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
+    # )
+    # joint_mirror = RewTerm(
+    #     func=mdp.joint_mirror,
+    #     weight=-0.01,  # -0.05
+    #     params={
+    #         "asset_cfg": SceneEntityCfg("robot"),
+    #         "mirror_joints": [
+    #             ["LF_(Roll|Hip|Knee).*", "RB_(Roll|Hip|Knee).*"],
+    #             ["RF_(Roll|Hip|Knee).*", "LB_(Roll|Hip|Knee).*"],
+    #         ],
+    #     },
+    # )
     stand_still = RewTerm(
         func=mdp.stand_still,
         weight=-2.0,  # -0.5,  # -0.2
