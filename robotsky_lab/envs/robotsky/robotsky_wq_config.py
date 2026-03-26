@@ -44,36 +44,6 @@ import math
 
 
 @configclass
-class DiagonalTrotCfg:
-    """开环对角 trot：在策略输出的腿关节 action 上叠加正弦，辅助抬脚。
-
-    对角组：RF 与 LB 同相，LF 与 RB 反相（相差 π），典型对角小跑相位。
-    步态周期随速度指令增大而缩短（更快指令 → 更高步频）。
-    适用于前/侧移、转弯、侧移+转、原地转等任何非静止指令（由 gate 关闭静止段）。
-    """
-
-    enable: bool = False
-    # 合成驱动量低于此值时不叠加（避免指令噪声引起微颤）
-    cmd_deadband: float = 0.05
-    # 超过死区后幅值从 0→1 的过渡宽度，越大开启越平滑
-    cmd_blend: float = 0.10
-    # 线速度归一化尺度（m/s）：用于把 ||v_xy|| 映射到周期混合项
-    speed_ref: float = 2.0
-    # 角速度归一化尺度（rad/s）：|wz| 参与周期与步频
-    ang_ref: float = 2.0
-    # 门控里 |wz| 的权重：偏大则原地自转更易触发抬脚辅助
-    wz_cmd_weight: float = 0.2
-    # 指令很大时逼近的最短步态周期（s）
-    period_min_s: float = 0.30
-    # 指令很小时逼近的最长步态周期（s）
-    period_max_s: float = 0.60
-    # 以下幅度为「归一化 action」空间，再经 clip_actions 约束；轮关节不参与
-    roll_amp: float = 0.0
-    hip_amp: float = 0.15
-    knee_amp: float = 0.30
-
-
-@configclass
 class WheelLeggedRobotCfg(RobotCfg):
     """Extends RobotCfg with wheel-specific fields for mixed position/velocity control."""
 
@@ -87,8 +57,8 @@ class WheelLeggedRobotCfg(RobotCfg):
     # Velocity command scale for wheel joints (rad/s per unit action)
     wheel_action_scale: float = 4.0
 
-    # 对角 trot 正弦叠加（见 DiagonalTrotCfg）
-    diagonal_trot: DiagonalTrotCfg = DiagonalTrotCfg()
+    terminate_angle_diff: float = math.pi / 4
+    terminate_lin_vel_diff: float = 0.5
 
 
 @configclass
