@@ -6,6 +6,8 @@ import math
 
 import torch
 from isaaclab.managers.scene_entity_cfg import SceneEntityCfg
+from isaaclab.utils.math import quat_apply, quat_conjugate, euler_xyz_from_quat
+import isaaclab.utils.math as math_utils
 
 from robotsky_lab.envs.base.base_env import BaseEnv
 from robotsky_lab.envs.robotsky.robotsky_wq_config import (
@@ -45,6 +47,8 @@ class RobotSkyWQEnv(BaseEnv):
         num_joints: int = self.robot.data.default_joint_pos.shape[1]
         self.leg_joint_ids: list = [i for i in range(num_joints) if i not in self.wheel_joint_ids]
         self.wheel_action_scale: float = self.cfg.robot.wheel_action_scale
+
+        self.target_yaw = torch.zeros(self.num_envs, device=self.device)
 
         self.rf_leg_ids, _ = self.robot.find_joints(
             name_keys=[
@@ -133,6 +137,10 @@ class RobotSkyWQEnv(BaseEnv):
 
         action = self.action_buffer._circular_buffer.buffer[:, -1, :]
 
+        _, _, current_yaw = euler_xyz_from_quat(robot.data.root_quat_w)
+        angle_diff = torch.atan2(torch.sin(self.target_yaw - current_yaw), torch.cos(self.target_yaw - current_yaw))
+        self.current_angle_diff = angle_diff
+
         current_actor_obs = torch.cat(
             [
                 ang_vel * self.obs_scales.ang_vel,
@@ -148,71 +156,15 @@ class RobotSkyWQEnv(BaseEnv):
         root_lin_vel = robot.data.root_lin_vel_b
         feet_contact = torch.max(torch.norm(net_contact_forces[:, :, self.feet_cfg.body_ids], dim=-1), dim=1)[0] > 0.5
         current_critic_obs = torch.cat(
-            [current_actor_obs, root_lin_vel * self.obs_scales.lin_vel, feet_contact],
+            [
+                current_actor_obs,
+                root_lin_vel * self.obs_scales.lin_vel,
+                feet_contact,
+            ],
             dim=-1,
         )
 
         return current_actor_obs, current_critic_obs
-
-    # ------------------------------------------------------------------
-    # 对角 trot：在裁剪后的全关节 action 上对腿关节叠加正弦（开环辅助抬脚）
-    # ------------------------------------------------------------------
-
-    def _apply_diagonal_trot_overlay(self, clipped_actions: torch.Tensor) -> torch.Tensor:
-        """在策略输出上叠加对角 trot 正弦；不改变观测中的 action（buffer 仍为原策略输出）。
-
-        假定 command 布局为 UniformVelocityCommand: [vx, vy, wz]（机体系线速度 + 绕竖轴角速度）。
-        """
-        cfg = self.cfg.robot.diagonal_trot
-        if not cfg.enable:
-            return clipped_actions
-
-        cmd = self.command_generator.command
-        vx, vy, wz = cmd[:, 0], cmd[:, 1], cmd[:, 2]
-        v_xy = torch.sqrt(vx * vx + vy * vy + 1e-9)
-
-        # 门控：静止/微指令时不叠加；侧移、前进、转圈均通过 v_xy 或 wz 打开
-        cmd_drive = v_xy + cfg.wz_cmd_weight * torch.abs(wz)
-        gate = torch.clamp((cmd_drive - cfg.cmd_deadband) / max(cfg.cmd_blend, 1e-6), 0.0, 1.0)
-
-        # 周期：speed_blend 越大 period 越短（步频越高）；饱和映射避免数值发散
-        speed_blend = v_xy / max(cfg.speed_ref, 1e-6) + torch.abs(wz) / max(cfg.ang_ref, 1e-6)
-        speed_blend = torch.clamp(speed_blend, 0.0, 20.0)
-        period = cfg.period_max_s - (cfg.period_max_s - cfg.period_min_s) * (speed_blend / (1.0 + speed_blend))
-        # 相位：按控制步长积分等价写法；reset 后 episode_length_buf=0 相位归零
-        phase = 2.0 * math.pi * self.episode_length_buf.to(dtype=torch.float32, device=self.device) * self.step_dt
-        phase = phase / period
-        s_a = torch.sin(phase).clamp(0.0, 1.0) * gate
-        s_b = torch.sin(phase + math.pi).clamp(0.0, 1.0) * gate  # 另一对角组，相差 π
-
-        overlay = torch.zeros_like(clipped_actions)
-        amps = (cfg.roll_amp, cfg.hip_amp, cfg.knee_amp)
-        # rf_leg_ids 等前 3 项为 Roll/Hip/Knee，第 4 项为轮关节，此处只写腿关节索引
-        # for i in range(3):
-        #     overlay[:, self.rf_leg_ids[i]] += amps[i] * s_a
-        #     overlay[:, self.lb_leg_ids[i]] += amps[i] * s_a
-        #     overlay[:, self.lf_leg_ids[i]] += amps[i] * s_b
-        #     overlay[:, self.rb_leg_ids[i]] += amps[i] * s_b
-
-        # roll
-        overlay[:, self.rf_leg_ids[0]] += amps[0] * s_a
-        overlay[:, self.lb_leg_ids[0]] += amps[0] * s_a
-        overlay[:, self.lf_leg_ids[0]] += amps[0] * s_b
-        overlay[:, self.rb_leg_ids[0]] += amps[0] * s_b
-
-        # hip
-        overlay[:, self.rf_leg_ids[1]] += amps[1] * s_a
-        overlay[:, self.lb_leg_ids[1]] += amps[1] * s_a
-        overlay[:, self.lf_leg_ids[1]] += amps[1] * s_b
-        overlay[:, self.rb_leg_ids[1]] += amps[1] * s_b
-
-        # knee
-        overlay[:, self.rf_leg_ids[2]] -= 2.0 * amps[2] * s_a
-        overlay[:, self.lb_leg_ids[2]] -= 2.0 * amps[2] * s_a
-        overlay[:, self.lf_leg_ids[2]] -= 2.0 * amps[2] * s_b
-        overlay[:, self.rb_leg_ids[2]] -= 2.0 * amps[2] * s_b
-
-        return torch.clip(clipped_actions + overlay, -self.clip_actions, self.clip_actions)
 
     # ------------------------------------------------------------------
     # Stepping
@@ -220,27 +172,33 @@ class RobotSkyWQEnv(BaseEnv):
 
     def step(self, actions: torch.Tensor):
         delayed_actions = self.action_buffer.compute(actions)
-        delayed_actions = torch.zeros_like(delayed_actions)
         clipped_actions = torch.clip(delayed_actions, -self.clip_actions, self.clip_actions).to(self.device)
-        # 对角 trot 正弦叠在腿关节 action 上；轮关节列保持为策略输出
-        clipped_actions = self._apply_diagonal_trot_overlay(clipped_actions)
 
         # Leg joints → position target
         leg_pos_target = clipped_actions[:, self.leg_joint_ids] * self.action_scale + self.robot.data.default_joint_pos[:, self.leg_joint_ids]
         # Wheel joints → velocity target
-        wheel_vel_target = clipped_actions[:, self.wheel_joint_ids] * self.wheel_action_scale + self.robot.data.default_joint_pos[:, self.wheel_joint_ids]
+        wheel_vel_target = clipped_actions[:, self.wheel_joint_ids] * self.wheel_action_scale
 
         for _ in range(self.cfg.sim.decimation):
             self.sim_step_counter += 1
             self.robot.set_joint_position_target(leg_pos_target, joint_ids=self.leg_joint_ids)
-            self.robot.set_joint_position_target(wheel_vel_target, joint_ids=self.wheel_joint_ids)
-            # self.robot.set_joint_velocity_target(wheel_vel_target, joint_ids=self.wheel_joint_ids)
+            # self.robot.set_joint_position_target(wheel_vel_target, joint_ids=self.wheel_joint_ids)
+            self.robot.set_joint_velocity_target(wheel_vel_target, joint_ids=self.wheel_joint_ids)
             self.scene.write_data_to_sim()
             self.sim.step(render=False)
             self.scene.update(dt=self.physics_dt)
 
         if not self.headless:
             self.sim.render()
+
+        # Get velocity commands
+        vel_x_cmd = self.command_generator.command[:, 0]  # velocity in yaw frame x direction
+        vel_y_cmd = self.command_generator.command[:, 1]  # velocity in yaw frame y direction
+        ang_vel_z_cmd = self.command_generator.command[:, 2]  # angular velocity
+
+        # Update target yaw and wrap to [-pi, pi] to prevent unbounded growth
+        self.target_yaw += ang_vel_z_cmd * self.step_dt
+        self.target_yaw = torch.atan2(torch.sin(self.target_yaw), torch.cos(self.target_yaw))
 
         self.episode_length_buf += 1
         self.command_generator.compute(self.step_dt)
@@ -256,3 +214,29 @@ class RobotSkyWQEnv(BaseEnv):
         self.extras["observations"] = {"critic": critic_obs}
 
         return actor_obs, reward_buf, self.reset_buf, self.extras
+
+    def check_reset(self):
+        net_contact_forces = self.contact_sensor.data.net_forces_w_history
+
+        reset_buf = torch.any(
+            torch.max(torch.norm(net_contact_forces[:, :, self.termination_contact_cfg.body_ids], dim=-1), dim=1)[0] > 1.0,
+            dim=1,
+        )
+        time_out_buf = self.episode_length_buf >= self.max_episode_length
+        reset_buf |= time_out_buf
+
+        # vel_yaw = math_utils.quat_apply_inverse(math_utils.yaw_quat(self.robot.data.root_quat_w), self.robot.data.root_lin_vel_w[:, :3])
+        # lin_vel_cmd_xy = self.command_generator.command[:, :2]
+        # lin_vel_fb_xy = vel_yaw[:, :2]
+        # lin_vel_diff = torch.sum(torch.square(lin_vel_cmd_xy - lin_vel_fb_xy), dim=1)
+        # reset_buf |= torch.abs(self.current_angle_diff) > self.cfg.robot.terminate_angle_diff
+        # reset_buf |= lin_vel_diff > self.cfg.robot.terminate_lin_vel_diff
+
+        return reset_buf, time_out_buf
+
+    def reset(self, env_ids):
+        super().reset(env_ids)
+
+        # Reset target yaw to current yaw after other reset
+        _, _, reset_yaw = euler_xyz_from_quat(self.robot.data.root_quat_w[env_ids])
+        self.target_yaw[env_ids] = reset_yaw

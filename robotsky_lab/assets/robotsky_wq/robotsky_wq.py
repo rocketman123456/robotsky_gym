@@ -60,7 +60,7 @@ ROBOTSKY_WQ_CFG = ArticulationCfg(
         "hip": ImplicitActuatorCfg(
             joint_names_expr=[".*Roll_Joint.*"],
             effort_limit_sim=6.0,
-            velocity_limit_sim=12.0,
+            velocity_limit_sim=11.0,
             # effort_limit_sim=7.0,
             # velocity_limit_sim=10.0,
             stiffness={".*Roll_Joint.*": 20.0},
@@ -72,16 +72,16 @@ ROBOTSKY_WQ_CFG = ArticulationCfg(
                 ".*Knee_Joint.*",
             ],
             effort_limit_sim={
-                ".*Hip_Joint.*": 10.0,
-                ".*Knee_Joint.*": 14.0,
+                ".*Hip_Joint.*": 9.0,
+                ".*Knee_Joint.*": 13.0,
                 # ".*Hip_Joint.*": 10.0,
                 # ".*Knee_Joint.*": 14.0,
             },
             velocity_limit_sim={
-                # ".*Hip_Joint.*": 20.0,
-                # ".*Knee_Joint.*": 20.0,
                 ".*Hip_Joint.*": 18.0,
                 ".*Knee_Joint.*": 18.0,
+                # ".*Hip_Joint.*": 20.0,
+                # ".*Knee_Joint.*": 20.0,
             },
             stiffness={
                 ".*Hip_Joint.*": 20.0,
@@ -95,7 +95,7 @@ ROBOTSKY_WQ_CFG = ArticulationCfg(
         "feet": ImplicitActuatorCfg(
             joint_names_expr=[".*Wheel_Joint.*"],
             effort_limit_sim=6.0,
-            velocity_limit_sim=12.0,
+            velocity_limit_sim=11.0,
             # effort_limit_sim=7.0,
             # velocity_limit_sim=10.0,
             stiffness={".*Wheel_Joint.*": 0.0},

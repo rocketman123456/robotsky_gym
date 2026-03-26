@@ -45,7 +45,7 @@ def compute_symmetric_states(
     """
     # Constants for K1 observation structure
     ACTOR_OBS_DIM = 57  # ang_vel(3) + projected_gravity(3) + command(3) + joint_pos(16) + joint_vel(16) + action(16)
-    CRITIC_OBS_DIM = 64  # root_lin_vel(3) + actor_obs(57) + feet_contact(4)
+    CRITIC_OBS_DIM = 64  # 60 # 64 # root_lin_vel(3) + actor_obs(57) + feet_contact(4)
     HISTORY_LENGTH = 10
 
     mirrored_obs = None
@@ -106,7 +106,7 @@ def mirror_critic_obs(critic_obs: torch.Tensor) -> torch.Tensor:
     Critic obs structure: [
         root_lin_vel(3),
         actor_obs(47),
-        feet_contact(2)
+        feet_contact(4)
     ]
 
     Args:
@@ -130,6 +130,8 @@ def mirror_critic_obs(critic_obs: torch.Tensor) -> torch.Tensor:
     # Mirror feet_contact: swap left(0) and right(1)
     mirrored[:, 3 + ACTOR_OBS_DIM + 0] = critic_obs[:, 3 + ACTOR_OBS_DIM + 1]  # left <- right
     mirrored[:, 3 + ACTOR_OBS_DIM + 1] = critic_obs[:, 3 + ACTOR_OBS_DIM + 0]  # right <- left
+    mirrored[:, 3 + ACTOR_OBS_DIM + 2] = critic_obs[:, 3 + ACTOR_OBS_DIM + 3]  # left <- right
+    mirrored[:, 3 + ACTOR_OBS_DIM + 3] = critic_obs[:, 3 + ACTOR_OBS_DIM + 2]  # right <- left
 
     return mirrored
 
