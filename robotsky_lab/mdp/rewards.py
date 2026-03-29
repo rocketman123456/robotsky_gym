@@ -174,6 +174,18 @@ def feet_contact_without_cmd(env: BaseEnv, sensor_cfg: SceneEntityCfg) -> torch.
     return reward
 
 
+def feet_contact_without_cmd_v2(env: BaseEnv, sensor_cfg: SceneEntityCfg, threshold: float = 4.0) -> torch.Tensor:
+    """Reward feet contact"""
+    # extract the used quantities (to enable type-hinting)
+    contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+    # compute the reward
+    contact = contact_sensor.compute_first_contact(env.step_dt)[:, sensor_cfg.body_ids]
+    reward = (torch.sum(contact, dim=-1).float() < threshold).float()
+    reward *= torch.linalg.norm(env.command_generator.command, dim=1) < 0.1
+    reward *= torch.clamp(-env.scene["robot"].data.projected_gravity_b[:, 2], 0, 0.7) / 0.7
+    return reward
+
+
 def feet_height(env: BaseEnv, asset_cfg: SceneEntityCfg, target_height: float, tanh_mult: float) -> torch.Tensor:
     """Reward the swinging feet for clearing a specified height off the ground"""
     asset: RigidObject = env.scene[asset_cfg.name]
