@@ -27,12 +27,12 @@
   </link>
   <link name="RF_Roll_Link">
     <inertial>
-      <origin xyz="0.213 -0.0605 0" rpy="0 0 0" />
+      <origin xyz="0.213 0.0605 0" rpy="0 0 0" />
       <mass value="0.351377163747343" />
       <inertia ixx="0.000147512525555682" ixy="7.27296704683984E-21" ixz="2.91358029794812E-36" iyy="0.00014270305062689" iyz="-1.01206721034946E-36" izz="0.000147512525555682" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0.0605 0" rpy="0 0 0" />
       <geometry>
         <mesh filename="../meshes/RF_Roll_Link.STL" />
       </geometry>
@@ -41,19 +41,18 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0.0605 0" rpy="0 0 0" />
       <geometry>
         <mesh filename="../meshes/RF_Roll_Link.STL" />
       </geometry>
     </collision>
   </link>
   <joint name="RF_Roll_Joint" type="revolute">
-    <origin xyz="0 0 0" rpy="0 0 0" />
+    <origin xyz="0.0 -0.0605 0" rpy="0 0 0" />
     <parent link="base_link" />
     <child link="RF_Roll_Link" />
     <axis xyz="1 0 0" />
-    <!-- <limit lower="-0.5" upper="1.57" effort="7" velocity="12" /> -->
-    <limit lower="-0.5" upper="1.57" effort="7" />
+    <limit lower="-0.5" upper="1.57" effort="5" velocity="10" />
   </joint>
   <link name="RF_Hip_Link">
     <inertial>
@@ -78,12 +77,11 @@
     </collision>
   </link>
   <joint name="RF_Hip_Joint" type="revolute">
-    <origin xyz="0.213 -0.06 0" rpy="0 0 0" />
+    <origin xyz="0.213 -0. 0" rpy="0 0 0" />
     <parent link="RF_Roll_Link" />
     <child link="RF_Hip_Link" />
     <axis xyz="0 1 0" />
-    <!-- <limit lower="-3.14" upper="0.01" effort="14" velocity="30" /> -->
-    <limit lower="-3.14" upper="0.01" effort="14" />
+    <limit lower="-3.14" upper="0.01" effort="8" velocity="20" />
   </joint>
   <link name="RF_Knee_Link">
     <inertial>
@@ -112,8 +110,7 @@
     <parent link="RF_Hip_Link" />
     <child link="RF_Knee_Link" />
     <axis xyz="0 1 0" />
-    <!-- <limit lower="-0.01" upper="3.14" effort="17" velocity="30" /> -->
-    <limit lower="-0.01" upper="3.14" effort="17" />
+    <limit lower="-0.01" upper="3.14" effort="12" velocity="20" />
   </joint>
   <link name="RF_Wheel_Link">
     <inertial>
@@ -122,9 +119,9 @@
       <inertia ixx="0.000951563871079743" ixy="-9.77416343626862E-20" ixz="-6.6558105573585E-51" iyy="0.00177432489773156" iyz="-1.60011892683328E-36" izz="0.000951563871079743" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 -0.043 0" rpy="1.57 0 0" />
       <geometry>
-        <mesh filename="../meshes/RF_Wheel_Link.STL" />
+        <cylinder radius="0.075" length="0.035" />
       </geometry>
       <material name="">
         <color rgba="1 1 1 1" />
@@ -140,10 +137,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 -0.042 0" rpy="1.57 0 0" />
+      <origin xyz="0 -0.043 0" rpy="1.57 0 0" />
       <geometry>
-        <cylinder radius="0.075" length="0.035"/>
-        <!-- <mesh filename="../meshes/RF_Wheel_Link.STL" /> -->
+        <cylinder radius="0.075" length="0.035" />
       </geometry>
     </collision>
     <!-- <collision>
@@ -153,13 +149,12 @@
       </geometry>
     </collision> -->
   </link>
-  <joint name="RF_Wheel_Joint" type="revolute">
+  <joint name="RF_Wheel_Joint" type="continuous">
     <origin xyz="0.16 -0.04 0" rpy="0 0 0" />
     <parent link="RF_Knee_Link" />
     <child link="RF_Wheel_Link" />
     <axis xyz="0 1 0" />
-    <!-- <limit lower="-300000000" upper="300000000" effort="7" velocity="12" /> -->
-    <limit lower="-300000000" upper="300000000" effort="7" />
+    <limit effort="5" velocity="10" />
   </joint>
   <link name="LF_Roll_Link">
     <inertial>
@@ -188,8 +183,7 @@
     <parent link="base_link" />
     <child link="LF_Roll_Link" />
     <axis xyz="1 0 0" />
-    <!-- <limit lower="-1.57" upper="0.5" effort="7" velocity="12" /> -->
-    <limit lower="-1.57" upper="0.5" effort="7" />
+    <limit lower="-1.57" upper="0.5" effort="5" velocity="10" />
   </joint>
   <link name="LF_Hip_Link">
     <inertial>
@@ -218,8 +212,7 @@
     <parent link="LF_Roll_Link" />
     <child link="LF_Hip_Link" />
     <axis xyz="0 1 0" />
-    <!-- <limit lower="-3.14" upper="0.01" effort="14" velocity="30" /> -->
-    <limit lower="-3.14" upper="0.01" effort="14" />
+    <limit lower="-3.14" upper="0.01" effort="8" velocity="20" />
   </joint>
   <link name="LF_Knee_Link">
     <inertial>
@@ -248,8 +241,7 @@
     <parent link="LF_Hip_Link" />
     <child link="LF_Knee_Link" />
     <axis xyz="0 1 0" />
-    <!-- <limit lower="-0.01" upper="3.14" effort="17" velocity="30" /> -->
-    <limit lower="-0.01" upper="3.14" effort="17" />
+    <limit lower="-0.01" upper="3.14" effort="12" velocity="20" />
   </joint>
   <link name="LF_Wheel_Link">
     <inertial>
@@ -258,9 +250,9 @@
       <inertia ixx="0.000951563871079743" ixy="9.77416343626861E-20" ixz="-6.65581055735849E-52" iyy="0.00177432489773156" iyz="1.60011892683328E-36" izz="0.000951563871079743" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0.043 0" rpy="1.57 0 0" />
       <geometry>
-        <mesh filename="../meshes/LF_Wheel_Link.STL" />
+        <cylinder radius="0.075" length="0.035" />
       </geometry>
       <material name="">
         <color rgba="1 1 1 1" />
@@ -276,10 +268,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0.042 0" rpy="1.57 0 0" />
+      <origin xyz="0 0.043 0" rpy="1.57 0 0" />
       <geometry>
-        <cylinder radius="0.075" length="0.035"/>
-        <!-- <mesh filename="../meshes/RF_Wheel_Link.STL" /> -->
+        <cylinder radius="0.075" length="0.035" />
       </geometry>
     </collision>
     <!-- <collision>
@@ -289,13 +280,12 @@
       </geometry>
     </collision> -->
   </link>
-  <joint name="LF_Wheel_Joint" type="revolute">
+  <joint name="LF_Wheel_Joint" type="continuous">
     <origin xyz="0.16 0.04 0" rpy="0 0 0" />
     <parent link="LF_Knee_Link" />
     <child link="LF_Wheel_Link" />
     <axis xyz="0 1 0" />
-    <!-- <limit lower="-300000000" upper="300000000" effort="7" velocity="12" /> -->
-    <limit lower="-300000000" upper="300000000" effort="7" />
+    <limit effort="5" velocity="10" />
   </joint>
   <link name="RB_Roll_Link">
     <inertial>
@@ -324,8 +314,7 @@
     <parent link="base_link" />
     <child link="RB_Roll_Link" />
     <axis xyz="1 0 0" />
-    <!-- <limit lower="-0.5" upper="1.57" effort="7" velocity="12" /> -->
-    <limit lower="-0.5" upper="1.57" effort="7" />
+    <limit lower="-0.5" upper="1.57" effort="5" velocity="10" />
   </joint>
   <link name="RB_Hip_Link">
     <inertial>
@@ -354,8 +343,7 @@
     <parent link="RB_Roll_Link" />
     <child link="RB_Hip_Link" />
     <axis xyz="0 1 0" />
-    <!-- <limit lower="-0.01" upper="3.14" effort="14" velocity="30" /> -->
-    <limit lower="-0.01" upper="3.14" effort="14" />
+    <limit lower="-0.01" upper="3.14" effort="8" velocity="20" />
   </joint>
   <link name="RB_Knee_Link">
     <inertial>
@@ -384,8 +372,7 @@
     <parent link="RB_Hip_Link" />
     <child link="RB_Knee_Link" />
     <axis xyz="0 1 0" />
-    <!-- <limit lower="-3.14" upper="0.01" effort="17" velocity="30" /> -->
-    <limit lower="-3.14" upper="0.01" effort="17" />
+    <limit lower="-3.14" upper="0.01" effort="12" velocity="20" />
   </joint>
   <link name="RB_Wheel_Link">
     <inertial>
@@ -394,9 +381,9 @@
       <inertia ixx="0.000951563871079743" ixy="9.77416343626861E-20" ixz="6.65581055735849E-52" iyy="0.00177432489773156" iyz="-1.60011892683328E-36" izz="0.000951563871079743" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 -0.043 0" rpy="1.57 0 0" />
       <geometry>
-        <mesh filename="../meshes/RB_Wheel_Link.STL" />
+        <cylinder radius="0.075" length="0.035" />
       </geometry>
       <material name="">
         <color rgba="1 1 1 1" />
@@ -412,10 +399,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 -0.042 0" rpy="1.57 0 0" />
+      <origin xyz="0 -0.043 0" rpy="1.57 0 0" />
       <geometry>
-        <cylinder radius="0.075" length="0.035"/>
-        <!-- <mesh filename="../meshes/RF_Wheel_Link.STL" /> -->
+        <cylinder radius="0.075" length="0.035" />
       </geometry>
     </collision>
     <!-- <collision>
@@ -425,13 +411,12 @@
       </geometry>
     </collision> -->
   </link>
-  <joint name="RB_Wheel_Joint" type="revolute">
+  <joint name="RB_Wheel_Joint" type="continuous">
     <origin xyz="-0.16 -0.04 0" rpy="0 0 0" />
     <parent link="RB_Knee_Link" />
     <child link="RB_Wheel_Link" />
     <axis xyz="0 1 0" />
-    <!-- <limit lower="-300000000" upper="300000000" effort="7" velocity="12" /> -->
-    <limit lower="-300000000" upper="300000000" effort="7" />
+    <limit effort="5" velocity="10" />
   </joint>
   <link name="LB_Roll_Link">
     <inertial>
@@ -460,8 +445,7 @@
     <parent link="base_link" />
     <child link="LB_Roll_Link" />
     <axis xyz="1 0 0" />
-    <!-- <limit lower="-1.57" upper="0.5" effort="7" velocity="12" /> -->
-    <limit lower="-1.57" upper="0.5" effort="7" />
+    <limit lower="-1.57" upper="0.5" effort="5" velocity="10" />
   </joint>
   <link name="LB_Hip_Link">
     <inertial>
@@ -490,8 +474,7 @@
     <parent link="LB_Roll_Link" />
     <child link="LB_Hip_Link" />
     <axis xyz="0 1 0" />
-    <!-- <limit lower="-0.01" upper="3.14" effort="14" velocity="30" /> -->
-    <limit lower="-0.01" upper="3.14" effort="14" />
+    <limit lower="-0.01" upper="3.14" effort="8" velocity="20" />
   </joint>
   <link name="LB_Knee_Link">
     <inertial>
@@ -520,8 +503,7 @@
     <parent link="LB_Hip_Link" />
     <child link="LB_Knee_Link" />
     <axis xyz="0 1 0" />
-    <!-- <limit lower="-3.14" upper="0.01" effort="17" velocity="30" /> -->
-    <limit lower="-3.14" upper="0.01" effort="17" />
+    <limit lower="-3.14" upper="0.01" effort="12" velocity="20" />
   </joint>
   <link name="LB_Wheel_Link">
     <inertial>
@@ -530,9 +512,9 @@
       <inertia ixx="0.000951563871079743" ixy="-9.77416343626862E-20" ixz="6.6558105573585E-51" iyy="0.00177432489773156" iyz="1.60011892683328E-36" izz="0.000951563871079743" />
     </inertial>
     <visual>
-      <origin xyz="0 0 0" rpy="0 0 0" />
+      <origin xyz="0 0.043 0" rpy="1.57 0 0" />
       <geometry>
-        <mesh filename="../meshes/LB_Wheel_Link.STL" />
+        <cylinder radius="0.075" length="0.035" />
       </geometry>
       <material name="">
         <color rgba="1 1 1 1" />
@@ -548,10 +530,9 @@
       </material>
     </visual>
     <collision>
-      <origin xyz="0 0.042 0" rpy="1.57 0 0" />
+      <origin xyz="0 0.043 0" rpy="1.57 0 0" />
       <geometry>
-        <cylinder radius="0.075" length="0.035"/>
-        <!-- <mesh filename="../meshes/RF_Wheel_Link.STL" /> -->
+        <cylinder radius="0.075" length="0.035" />
       </geometry>
     </collision>
     <!-- <collision>
@@ -561,12 +542,11 @@
       </geometry>
     </collision> -->
   </link>
-  <joint name="LB_Wheel_Joint" type="revolute">
+  <joint name="LB_Wheel_Joint" type="continuous">
     <origin xyz="-0.16 0.04 0" rpy="0 0 0" />
     <parent link="LB_Knee_Link" />
     <child link="LB_Wheel_Link" />
     <axis xyz="0 1 0" />
-    <!-- <limit lower="-300000000" upper="300000000" effort="7" velocity="12" /> -->
-    <limit lower="-300000000" upper="300000000" effort="7" />
+    <limit effort="5" velocity="10" />
   </joint>
 </robot>

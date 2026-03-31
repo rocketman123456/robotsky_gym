@@ -25,8 +25,9 @@
       <inertial pos="0 0 0.0535" quat="0.5 0.5 0.5 0.5" mass="12.2741" diaginertia="0.155787 0.147821 0.0643368"/>
       <joint name="base_link_free_joint" type="free"/>
       <geom type="mesh" rgba="0.796078 0.823529 0.937255 1" mesh="base_link"/>
-      <body name="RF_Roll_Link">
-        <inertial pos="0.213 -0.0605 0" quat="0.707107 0.707107 0 0" mass="0.351377" diaginertia="0.000147513 0.000147513 0.000142703"/>
+      <body name="RF_Roll_Link" pos="0.213 -0.06 0">
+        <!-- <inertial pos="0.213 -0.0605 0" quat="0.707107 0.707107 0 0" mass="0.351377" diaginertia="0.000147513 0.000147513 0.000142703"/> -->
+        <inertial pos="0 0.0005 0" quat="0.707107 0.707107 0 0" mass="0.351377" diaginertia="0.000147513 0.000147513 0.000142703"/>
         <joint name="RF_Roll_Joint" pos="0 0 0" axis="1 0 0" range="-10 10"/>
         <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="RF_Roll_Link"/>
         <body name="RF_Hip_Link" pos="0.213 -0.06 0">

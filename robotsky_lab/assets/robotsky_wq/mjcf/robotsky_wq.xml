@@ -47,7 +47,7 @@
 
       <body name="RF_Roll_Link">
         <inertial pos="0.213 -0.0605 0" quat="0.707107 0.707107 0 0" mass="0.351377" diaginertia="0.000147513 0.000147513 0.000142703"/>
-        <joint name="RF_Roll_Joint" pos="0 0 0" axis="1 0 0" range="-0.5 1.57" actuatorfrcrange="-7 7"/>
+        <joint name="RF_Roll_Joint" pos="0.213 -0.0605 0" axis="1 0 0" range="-0.5 1.57" actuatorfrcrange="-7 7"/>
         <geom type="mesh" rgba="0.898039 0.917647 0.929412 1" mesh="RF_Roll_Link"/>
         <body name="RF_Hip_Link" pos="0.213 -0.06 0">
           <inertial pos="-0.08 -0.0655 0" quat="0.5 0.5 0.5 0.5" mass="0.2576" diaginertia="0.000583893 0.000575843 6.06433e-05"/>
@@ -62,6 +62,7 @@
               <joint name="RF_Wheel_Joint" pos="0 0 0" axis="0 1 0" range="-10000000 10000000" actuatorfrcrange="-7 7"/>
               <!-- <geom type="mesh" rgba="1 1 1 1" mesh="RF_Wheel_Link" contype="1" conaffinity="1" priority="1" condim="6" friction="1.5 0.1 0.0002" solimp="0.9 0.95 0.001" solref="0.02 0.7" /> -->
               <geom type="cylinder" pos="0 -0.043 0" size="0.075 0.0175" quat="0.707107 0.707107 0 0" rgba="1 1 1 1" contype="1" conaffinity="1" priority="1" condim="6" friction="1.5 0.05 0.0002" solimp="0.9 0.95 0.001" solref="0.02 0.7" />
+              <geom type="sphere" pos="0.08 0 0" size="0.05" rgba="0 1 0 1" contype="0" conaffinity="0" />
             </body>
           </body>
         </body>
@@ -83,6 +84,7 @@
               <joint name="LF_Wheel_Joint" pos="0 0 0" axis="0 1 0" range="-10000000 10000000" actuatorfrcrange="-7 7"/>
               <!-- <geom type="mesh" rgba="1 1 1 1" mesh="LF_Wheel_Link" contype="1" conaffinity="1" priority="1" condim="6" friction="1.5 0.05 0.0002" solimp="0.9 0.95 0.001" solref="0.02 0.7" /> -->
               <geom type="cylinder" pos="0 0.043 0" size="0.075 0.0175" quat="0.707107 0.707107 0 0" rgba="1 1 1 1" contype="1" conaffinity="1" priority="1" condim="6" friction="1.5 0.05 0.0002" solimp="0.9 0.95 0.001" solref="0.02 0.7" />
+              <geom type="sphere" pos="0.08 0 0" size="0.05" rgba="0 1 0 1" contype="0" conaffinity="0" />
             </body>
           </body>
         </body>
@@ -104,6 +106,7 @@
               <joint name="RB_Wheel_Joint" pos="0 0 0" axis="0 1 0" range="-10000000 10000000" actuatorfrcrange="-7 7"/>
               <!-- <geom type="mesh" rgba="1 1 1 1" mesh="RB_Wheel_Link" contype="1" conaffinity="1" priority="1" condim="6" friction="1.5 0.05 0.0002" solimp="0.9 0.95 0.001" solref="0.02 0.7" /> -->
               <geom type="cylinder" pos="0 -0.043 0" size="0.075 0.0175" quat="0.707107 0.707107 0 0" rgba="1 1 1 1" contype="1" conaffinity="1" priority="1" condim="6" friction="1.5 0.05 0.0002" solimp="0.9 0.95 0.001" solref="0.02 0.7" />
+              <geom type="sphere" pos="0.08 0 0" size="0.05" rgba="0 1 0 1" contype="0" conaffinity="0" />
             </body>
           </body>
         </body>
@@ -125,6 +128,7 @@
               <joint name="LB_Wheel_Joint" pos="0 0 0" axis="0 1 0" range="-10000000 10000000" actuatorfrcrange="-7 7"/>
               <!-- <geom type="mesh" rgba="1 1 1 1" mesh="LB_Wheel_Link" contype="1" conaffinity="1" priority="1" condim="6" friction="1.5 0.05 0.0002" solimp="0.9 0.95 0.001" solref="0.02 0.7" /> -->
               <geom type="cylinder" pos="0 0.043 0" size="0.075 0.0175" quat="0.707107 0.707107 0 0" rgba="1 1 1 1" contype="1" conaffinity="1" priority="1" condim="6" friction="1.5 0.05 0.0002" solimp="0.9 0.95 0.001" solref="0.02 0.7" />
+              <geom type="sphere" pos="0.08 0 0" size="0.05" rgba="0 1 0 1" contype="0" conaffinity="0" />
             </body>
           </body>
         </body>
@@ -156,22 +160,22 @@
     <position name="RF_Roll" joint="RF_Roll_Joint" kp="20.0" kv="1.0" forcerange="-5 5" forcelimited="true" />
     <position name="RF_Hip" joint="RF_Hip_Joint" kp="20.0" kv="1.0" forcerange="-8 8" forcelimited="true" />
     <position name="RF_Knee" joint="RF_Knee_Joint" kp="40.0" kv="1.0" forcerange="-12 12" forcelimited="true" />
-    <velocity name="RF_Wheel" joint="RF_Wheel_Joint" kv="0.5" forcerange="-5 5" forcelimited="true" />
+    <velocity name="RF_Wheel" joint="RF_Wheel_Joint" kv="1.0" forcerange="-5 5" forcelimited="true" />
 
     <position name="LF_Roll" joint="LF_Roll_Joint" kp="20.0" kv="1.0" forcerange="-5 5" forcelimited="true" />
     <position name="LF_Hip" joint="LF_Hip_Joint" kp="20.0" kv="1.0" forcerange="-8 8" forcelimited="true" />
     <position name="LF_Knee" joint="LF_Knee_Joint" kp="40.0" kv="1.0" forcerange="-12 12" forcelimited="true" />
-    <velocity name="LF_Wheel" joint="LF_Wheel_Joint" kv="0.5" forcerange="-5 5" forcelimited="true" />
+    <velocity name="LF_Wheel" joint="LF_Wheel_Joint" kv="1.0" forcerange="-5 5" forcelimited="true" />
 
     <position name="RB_Roll" joint="RB_Roll_Joint" kp="20.0" kv="1.0" forcerange="-5 5" forcelimited="true" />
     <position name="RB_Hip" joint="RB_Hip_Joint" kp="20.0" kv="1.0" forcerange="-8 8" forcelimited="true" />
     <position name="RB_Knee" joint="RB_Knee_Joint" kp="40.0" kv="1.0" forcerange="-12 12" forcelimited="true" />
-    <velocity name="RB_Wheel" joint="RB_Wheel_Joint" kv="0.5" forcerange="-5 5" forcelimited="true" />
+    <velocity name="RB_Wheel" joint="RB_Wheel_Joint" kv="1.0" forcerange="-5 5" forcelimited="true" />
 
     <position name="LB_Roll" joint="LB_Roll_Joint" kp="20.0" kv="1.0" forcerange="-5 5" forcelimited="true" />
     <position name="LB_Hip" joint="LB_Hip_Joint" kp="20.0" kv="1.0" forcerange="-8 8" forcelimited="true" />
     <position name="LB_Knee" joint="LB_Knee_Joint" kp="40.0" kv="1.0" forcerange="-12 12" forcelimited="true" />
-    <velocity name="LB_Wheel" joint="LB_Wheel_Joint" kv="0.5" forcerange="-5 5" forcelimited="true" />
+    <velocity name="LB_Wheel" joint="LB_Wheel_Joint" kv="1.0" forcerange="-5 5" forcelimited="true" />
   </actuator>
 
   <sensor>
