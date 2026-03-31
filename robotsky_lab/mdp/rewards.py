@@ -17,7 +17,8 @@ import isaaclab.utils.math as math_utils
 import torch
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.sensors import ContactSensor
+from isaaclab.sensors import ContactSensor, RayCaster
+
 
 if TYPE_CHECKING:
     from robotsky_lab.envs.base.base_env import BaseEnv
@@ -31,10 +32,69 @@ def track_lin_vel_xy_yaw_frame_exp(env: BaseEnv, std: float, asset_cfg: SceneEnt
     return torch.exp(-lin_vel_error / std**2)
 
 
+def track_lin_vel_xy_yaw_frame_exp_v2(env: BaseEnv, std: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    zero_cmd = torch.linalg.norm(env.command_generator.command, dim=1) < 0.05
+    vel_yaw = math_utils.quat_apply_inverse(math_utils.yaw_quat(asset.data.root_quat_w), asset.data.root_lin_vel_w[:, :3])
+    lin_vel_error = torch.sum(torch.square(env.command_generator.command[:, :2] - vel_yaw[:, :2]), dim=1)
+    lin_vel = torch.sum(torch.square(vel_yaw[:, :2]), dim=1)
+    walk_reward = torch.exp(-lin_vel_error / std**2)
+    stand_reward = torch.exp(-lin_vel / std**2)
+    reward = torch.where(zero_cmd, stand_reward, walk_reward)
+    return reward
+
+
 def track_ang_vel_z_world_exp(env: BaseEnv, std: float, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     asset: Articulation = env.scene[asset_cfg.name]
     ang_vel_error = torch.square(env.command_generator.command[:, 2] - asset.data.root_ang_vel_w[:, 2])
     return torch.exp(-ang_vel_error / std**2)
+
+
+def base_height_l2(
+    env: BaseEnv,
+    target_height: float,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    sensor_cfg: SceneEntityCfg | None = None,
+) -> torch.Tensor:
+    """Penalize asset height from its target using L2 squared kernel.
+
+    Note:
+        For flat terrain, target height is in the world frame. For rough terrain,
+        sensor readings can adjust the target height to account for the terrain.
+    """
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    if sensor_cfg is not None:
+        sensor: RayCaster = env.scene[sensor_cfg.name]
+        # Adjust the target height using the sensor data
+        adjusted_target_height = target_height + torch.mean(sensor.data.ray_hits_w[..., 2], dim=1)
+    else:
+        # Use the provided target height directly for flat terrain
+        adjusted_target_height = target_height
+    # Compute the L2 squared penalty
+    return torch.square(asset.data.root_pos_w[:, 2] - adjusted_target_height)
+
+
+def base_height_range(
+    env: BaseEnv,
+    target_height: float,
+    delta_height: float,
+    asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"),
+    sensor_cfg: SceneEntityCfg | None = None,
+) -> torch.Tensor:
+    # extract the used quantities (to enable type-hinting)
+    asset: RigidObject = env.scene[asset_cfg.name]
+    if sensor_cfg is not None:
+        sensor: RayCaster = env.scene[sensor_cfg.name]
+        # Adjust the target height using the sensor data
+        adjusted_target_height = target_height + torch.mean(sensor.data.ray_hits_w[..., 2], dim=1)
+    else:
+        # Use the provided target height directly for flat terrain
+        adjusted_target_height = target_height
+    # Compute the L2 squared penalty
+    delta = asset.data.root_pos_w[:, 2] - adjusted_target_height
+    reward = torch.max(0.0, torch.abs(delta) - delta_height)
+    return reward
 
 
 def lin_vel_z_l2(env: BaseEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
@@ -45,6 +105,13 @@ def lin_vel_z_l2(env: BaseEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot
 def ang_vel_xy_l2(env: BaseEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
     asset: Articulation = env.scene[asset_cfg.name]
     return torch.sum(torch.square(asset.data.root_ang_vel_b[:, :2]), dim=1)
+
+
+def ang_vel_xy_l1(env: BaseEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
+    asset: Articulation = env.scene[asset_cfg.name]
+    roll = torch.abs(asset.data.root_ang_vel_b[:, 0])
+    pitch = torch.abs(asset.data.root_ang_vel_b[:, 1])
+    return roll + pitch
 
 
 def energy(env: BaseEnv, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
@@ -111,8 +178,36 @@ def joint_mirror(env: BaseEnv, asset_cfg: SceneEntityCfg, mirror_joints: list[li
     return reward
 
 
+def joint_mirror_v2(env: BaseEnv, asset_cfg: SceneEntityCfg, mirror_joints: list[list[str]]) -> torch.Tensor:
+    # extract the used quantities (to enable type-hinting)
+    asset: Articulation = env.scene[asset_cfg.name]
+    if not hasattr(env, "joint_mirror_joints_cache") or env.joint_mirror_joints_cache is None:
+        # Cache joint positions for all pairs
+        env.joint_mirror_joints_cache = [[asset.find_joints(joint_name) for joint_name in joint_pair] for joint_pair in mirror_joints]
+    reward = torch.zeros(env.num_envs, device=env.device)
+    # Iterate over all joint pairs
+    for joint_pair in env.joint_mirror_joints_cache:
+        # Calculate the difference for each pair and add to the total reward
+        diff = torch.sum(torch.square(asset.data.joint_pos[:, joint_pair[0][0]] - asset.data.joint_pos[:, joint_pair[1][0]]), dim=-1)
+        reward += diff
+    reward *= 1 / len(mirror_joints) if len(mirror_joints) > 0 else 0
+    reward *= torch.clamp(-env.scene["robot"].data.projected_gravity_b[:, 2], 0, 0.7) / 0.7
+    return reward
+
+
 def action_rate_l2(env: BaseEnv) -> torch.Tensor:
     return torch.sum(torch.square(env.action_buffer._circular_buffer.buffer[:, -1, :] - env.action_buffer._circular_buffer.buffer[:, -2, :]), dim=1)
+
+
+def action_smoothness_l2(env: BaseEnv) -> torch.Tensor:
+    return torch.sum(
+        torch.square(
+            env.action_buffer._circular_buffer.buffer[:, -1, :]
+            - 2.0 * env.action_buffer._circular_buffer.buffer[:, -2, :]
+            + env.action_buffer._circular_buffer.buffer[:, -3, :]
+        ),
+        dim=1,
+    )
 
 
 def undesired_contacts(env: BaseEnv, threshold: float, sensor_cfg: SceneEntityCfg) -> torch.Tensor:
