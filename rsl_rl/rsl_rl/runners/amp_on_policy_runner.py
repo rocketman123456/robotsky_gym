@@ -23,6 +23,8 @@ import statistics
 import time
 from collections import deque
 
+from numpy import dtype
+
 import torch
 
 import rsl_rl
@@ -122,7 +124,7 @@ class AmpOnPolicyRunner:
             device,
             train_cfg["amp_task_reward_lerp"],
         ).to(self.device)
-        min_std = torch.zeros(len(train_cfg["min_normalized_std"]), device=self.device, requires_grad=False)
+        min_std = torch.tensor(train_cfg["min_normalized_std"], dtype=torch.float, device=self.device, requires_grad=False)
 
         # initialize algorithm
         alg_class = eval(self.alg_cfg.pop("class_name"))
@@ -143,9 +145,7 @@ class AmpOnPolicyRunner:
         self.empirical_normalization = self.cfg["empirical_normalization"]
         if self.empirical_normalization:
             self.obs_normalizer = EmpiricalNormalization(shape=[num_obs], until=1.0e8).to(self.device)
-            self.privileged_obs_normalizer = EmpiricalNormalization(shape=[num_privileged_obs], until=1.0e8).to(
-                self.device
-            )
+            self.privileged_obs_normalizer = EmpiricalNormalization(shape=[num_privileged_obs], until=1.0e8).to(self.device)
         else:
             self.obs_normalizer = torch.nn.Identity().to(self.device)  # no normalization
             self.privileged_obs_normalizer = torch.nn.Identity().to(self.device)  # no normalization
@@ -201,9 +201,7 @@ class AmpOnPolicyRunner:
 
         # randomize initial episode lengths (for exploration)
         if init_at_random_ep_len:
-            self.env.episode_length_buf = torch.randint_like(
-                self.env.episode_length_buf, high=int(self.env.max_episode_length)
-            )
+            self.env.episode_length_buf = torch.randint_like(self.env.episode_length_buf, high=int(self.env.max_episode_length))
 
         # start learning
         obs, extras = self.env.get_observations()
@@ -256,9 +254,7 @@ class AmpOnPolicyRunner:
                     # perform normalization
                     obs = self.obs_normalizer(obs)
                     if self.privileged_obs_type is not None:
-                        privileged_obs = self.privileged_obs_normalizer(
-                            infos["observations"][self.privileged_obs_type].to(self.device)
-                        )
+                        privileged_obs = self.privileged_obs_normalizer(infos["observations"][self.privileged_obs_type].to(self.device))
                     else:
                         privileged_obs = obs
 
@@ -268,9 +264,7 @@ class AmpOnPolicyRunner:
                     terminal_amp_states = self.env.get_amp_obs_for_expert_trans()[reset_env_ids]
                     next_amp_obs_with_term[reset_env_ids] = terminal_amp_states
 
-                    rewards = self.alg.discriminator.predict_amp_reward(
-                        amp_obs, next_amp_obs_with_term, rewards, normalizer=self.alg.amp_normalizer
-                    )[0]
+                    rewards = self.alg.discriminator.predict_amp_reward(amp_obs, next_amp_obs_with_term, rewards, normalizer=self.alg.amp_normalizer)[0]
                     amp_obs = torch.clone(next_amp_obs)
                     self.alg.process_env_step(rewards, dones, infos, next_amp_obs_with_term)
 
@@ -402,9 +396,7 @@ class AmpOnPolicyRunner:
             self.writer.add_scalar("Train/mean_episode_length", statistics.mean(locs["lenbuffer"]), locs["it"])
             if self.logger_type != "wandb":  # wandb does not support non-integer x-axis logging
                 self.writer.add_scalar("Train/mean_reward/time", statistics.mean(locs["rewbuffer"]), self.tot_time)
-                self.writer.add_scalar(
-                    "Train/mean_episode_length/time", statistics.mean(locs["lenbuffer"]), self.tot_time
-                )
+                self.writer.add_scalar("Train/mean_episode_length/time", statistics.mean(locs["lenbuffer"]), self.tot_time)
 
         str = f" \033[1m Learning iteration {locs['it']}/{locs['tot_iter']} \033[0m "
 
@@ -577,18 +569,12 @@ class AmpOnPolicyRunner:
 
         # check if user has device specified for local rank
         if self.device != f"cuda:{self.gpu_local_rank}":
-            raise ValueError(
-                f"Device '{self.device}' does not match expected device for local rank '{self.gpu_local_rank}'."
-            )
+            raise ValueError(f"Device '{self.device}' does not match expected device for local rank '{self.gpu_local_rank}'.")
         # validate multi-gpu configuration
         if self.gpu_local_rank >= self.gpu_world_size:
-            raise ValueError(
-                f"Local rank '{self.gpu_local_rank}' is greater than or equal to world size '{self.gpu_world_size}'."
-            )
+            raise ValueError(f"Local rank '{self.gpu_local_rank}' is greater than or equal to world size '{self.gpu_world_size}'.")
         if self.gpu_global_rank >= self.gpu_world_size:
-            raise ValueError(
-                f"Global rank '{self.gpu_global_rank}' is greater than or equal to world size '{self.gpu_world_size}'."
-            )
+            raise ValueError(f"Global rank '{self.gpu_global_rank}' is greater than or equal to world size '{self.gpu_world_size}'.")
 
         # initialize torch distributed
         torch.distributed.init_process_group(backend="nccl", rank=self.gpu_global_rank, world_size=self.gpu_world_size)

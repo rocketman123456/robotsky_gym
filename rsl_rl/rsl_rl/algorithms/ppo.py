@@ -39,6 +39,7 @@ class PPO:
         desired_kl=0.01,
         device="cpu",
         normalize_advantage_per_mini_batch=False,
+        min_std: torch.Tensor | None = None,
         # RND parameters
         rnd_cfg: dict | None = None,
         # Symmetry parameters
@@ -56,6 +57,8 @@ class PPO:
         else:
             self.gpu_global_rank = 0
             self.gpu_world_size = 1
+
+        self.min_std = min_std
 
         # RND components
         if rnd_cfg is not None:
@@ -82,10 +85,7 @@ class PPO:
                 symmetry_cfg["data_augmentation_func"] = string_to_callable(symmetry_cfg["data_augmentation_func"])
             # Check valid configuration
             if symmetry_cfg["use_data_augmentation"] and not callable(symmetry_cfg["data_augmentation_func"]):
-                raise ValueError(
-                    "Data augmentation enabled but the function is not callable:"
-                    f" {symmetry_cfg['data_augmentation_func']}"
-                )
+                raise ValueError("Data augmentation enabled but the function is not callable:" f" {symmetry_cfg['data_augmentation_func']}")
             # Store symmetry configuration
             self.symmetry = symmetry_cfg
         else:
@@ -115,9 +115,7 @@ class PPO:
         self.learning_rate = learning_rate
         self.normalize_advantage_per_mini_batch = normalize_advantage_per_mini_batch
 
-    def init_storage(
-        self, training_type, num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, actions_shape
-    ):
+    def init_storage(self, training_type, num_envs, num_transitions_per_env, actor_obs_shape, critic_obs_shape, actions_shape):
         # create memory for RND as well :)
         if self.rnd:
             rnd_state_shape = [self.rnd.num_states]
@@ -169,9 +167,7 @@ class PPO:
 
         # Bootstrapping on time outs
         if "time_outs" in infos:
-            self.transition.rewards += self.gamma * torch.squeeze(
-                self.transition.values * infos["time_outs"].unsqueeze(1).to(self.device), 1
-            )
+            self.transition.rewards += self.gamma * torch.squeeze(self.transition.values * infos["time_outs"].unsqueeze(1).to(self.device), 1)
 
         # record the transition
         self.storage.add_transitions(self.transition)
@@ -181,9 +177,7 @@ class PPO:
     def compute_returns(self, last_critic_obs):
         # compute value for the last step
         last_values = self.policy.evaluate(last_critic_obs).detach()
-        self.storage.compute_returns(
-            last_values, self.gamma, self.lam, normalize_advantage=not self.normalize_advantage_per_mini_batch
-        )
+        self.storage.compute_returns(last_values, self.gamma, self.lam, normalize_advantage=not self.normalize_advantage_per_mini_batch)
 
     def update(self):  # noqa: C901
         mean_value_loss = 0
@@ -238,12 +232,8 @@ class PPO:
                 # augmentation using symmetry
                 data_augmentation_func = self.symmetry["data_augmentation_func"]
                 # returned shape: [batch_size * num_aug, ...]
-                obs_batch, actions_batch = data_augmentation_func(
-                    obs=obs_batch, actions=actions_batch, env=self.symmetry["_env"], obs_type="policy"
-                )
-                critic_obs_batch, _ = data_augmentation_func(
-                    obs=critic_obs_batch, actions=None, env=self.symmetry["_env"], obs_type="critic"
-                )
+                obs_batch, actions_batch = data_augmentation_func(obs=obs_batch, actions=actions_batch, env=self.symmetry["_env"], obs_type="policy")
+                critic_obs_batch, _ = data_augmentation_func(obs=critic_obs_batch, actions=None, env=self.symmetry["_env"], obs_type="critic")
                 # compute number of augmentations per sample
                 num_aug = int(obs_batch.shape[0] / original_batch_size)
                 # repeat the rest of the batch
@@ -272,8 +262,7 @@ class PPO:
                 with torch.inference_mode():
                     kl = torch.sum(
                         torch.log(sigma_batch / old_sigma_batch + 1.0e-5)
-                        + (torch.square(old_sigma_batch) + torch.square(old_mu_batch - mu_batch))
-                        / (2.0 * torch.square(sigma_batch))
+                        + (torch.square(old_sigma_batch) + torch.square(old_mu_batch - mu_batch)) / (2.0 * torch.square(sigma_batch))
                         - 0.5,
                         axis=-1,
                     )
@@ -307,16 +296,12 @@ class PPO:
             # Surrogate loss
             ratio = torch.exp(actions_log_prob_batch - torch.squeeze(old_actions_log_prob_batch))
             surrogate = -torch.squeeze(advantages_batch) * ratio
-            surrogate_clipped = -torch.squeeze(advantages_batch) * torch.clamp(
-                ratio, 1.0 - self.clip_param, 1.0 + self.clip_param
-            )
+            surrogate_clipped = -torch.squeeze(advantages_batch) * torch.clamp(ratio, 1.0 - self.clip_param, 1.0 + self.clip_param)
             surrogate_loss = torch.max(surrogate, surrogate_clipped).mean()
 
             # Value function loss
             if self.use_clipped_value_loss:
-                value_clipped = target_values_batch + (value_batch - target_values_batch).clamp(
-                    -self.clip_param, self.clip_param
-                )
+                value_clipped = target_values_batch + (value_batch - target_values_batch).clamp(-self.clip_param, self.clip_param)
                 value_losses = (value_batch - returns_batch).pow(2)
                 value_losses_clipped = (value_clipped - returns_batch).pow(2)
                 value_loss = torch.max(value_losses, value_losses_clipped).mean()
@@ -331,9 +316,7 @@ class PPO:
                 # if we did augmentation before then we don't need to augment again
                 if not self.symmetry["use_data_augmentation"]:
                     data_augmentation_func = self.symmetry["data_augmentation_func"]
-                    obs_batch, _ = data_augmentation_func(
-                        obs=obs_batch, actions=None, env=self.symmetry["_env"], obs_type="policy"
-                    )
+                    obs_batch, _ = data_augmentation_func(obs=obs_batch, actions=None, env=self.symmetry["_env"], obs_type="policy")
                     # compute number of augmentations per sample
                     num_aug = int(obs_batch.shape[0] / original_batch_size)
 
@@ -345,15 +328,11 @@ class PPO:
                 #   We do not use the action_batch from earlier since that action was sampled from the distribution.
                 #   However, the symmetry loss is computed using the mean of the distribution.
                 action_mean_orig = mean_actions_batch[:original_batch_size]
-                _, actions_mean_symm_batch = data_augmentation_func(
-                    obs=None, actions=action_mean_orig, env=self.symmetry["_env"], obs_type="policy"
-                )
+                _, actions_mean_symm_batch = data_augmentation_func(obs=None, actions=action_mean_orig, env=self.symmetry["_env"], obs_type="policy")
 
                 # compute the loss (we skip the first augmentation as it is the original one)
                 mse_loss = torch.nn.MSELoss()
-                symmetry_loss = mse_loss(
-                    mean_actions_batch[original_batch_size:], actions_mean_symm_batch.detach()[original_batch_size:]
-                )
+                symmetry_loss = mse_loss(mean_actions_batch[original_batch_size:], actions_mean_symm_batch.detach()[original_batch_size:])
                 # add the loss to the total loss
                 if self.symmetry["use_mirror_loss"]:
                     loss += self.symmetry["mirror_loss_coeff"] * symmetry_loss
@@ -386,6 +365,14 @@ class PPO:
             # -- For PPO
             nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)
             self.optimizer.step()
+
+            # Clamp action noise std to minimum value
+            if self.min_std is not None:
+                if self.policy.noise_std_type == "scalar":
+                    self.policy.std.data = torch.max(self.policy.std.data, self.min_std)
+                elif self.policy.noise_std_type == "log":
+                    self.policy.log_std.data = torch.max(self.policy.log_std.data, torch.log(self.min_std))
+
             # -- For RND
             if self.rnd_optimizer:
                 self.rnd_optimizer.step()

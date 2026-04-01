@@ -91,10 +91,16 @@ class OnPolicyRunner:
             # this is used by the symmetry function for handling different observation terms
             self.alg_cfg["symmetry_cfg"]["_env"] = env
 
+        min_std = torch.tensor(train_cfg["min_normalized_std"], dtype=torch.float, device=self.device, requires_grad=False)
+
         # initialize algorithm
         alg_class = eval(self.alg_cfg.pop("class_name"))
         self.alg: PPO | Distillation = alg_class(
-            policy, device=self.device, **self.alg_cfg, multi_gpu_cfg=self.multi_gpu_cfg
+            policy,
+            min_std=min_std,
+            device=self.device,
+            **self.alg_cfg,
+            multi_gpu_cfg=self.multi_gpu_cfg,
         )
 
         # store training configuration
@@ -103,9 +109,7 @@ class OnPolicyRunner:
         self.empirical_normalization = self.cfg["empirical_normalization"]
         if self.empirical_normalization:
             self.obs_normalizer = EmpiricalNormalization(shape=[num_obs], until=1.0e8).to(self.device)
-            self.privileged_obs_normalizer = EmpiricalNormalization(shape=[num_privileged_obs], until=1.0e8).to(
-                self.device
-            )
+            self.privileged_obs_normalizer = EmpiricalNormalization(shape=[num_privileged_obs], until=1.0e8).to(self.device)
         else:
             self.obs_normalizer = torch.nn.Identity().to(self.device)  # no normalization
             self.privileged_obs_normalizer = torch.nn.Identity().to(self.device)  # no normalization
@@ -161,9 +165,7 @@ class OnPolicyRunner:
 
         # randomize initial episode lengths (for exploration)
         if init_at_random_ep_len:
-            self.env.episode_length_buf = torch.randint_like(
-                self.env.episode_length_buf, high=int(self.env.max_episode_length)
-            )
+            self.env.episode_length_buf = torch.randint_like(self.env.episode_length_buf, high=int(self.env.max_episode_length))
 
         # start learning
         obs, extras = self.env.get_observations()
@@ -209,9 +211,7 @@ class OnPolicyRunner:
                     # perform normalization
                     obs = self.obs_normalizer(obs)
                     if self.privileged_obs_type is not None:
-                        privileged_obs = self.privileged_obs_normalizer(
-                            infos["observations"][self.privileged_obs_type].to(self.device)
-                        )
+                        privileged_obs = self.privileged_obs_normalizer(infos["observations"][self.privileged_obs_type].to(self.device))
                     else:
                         privileged_obs = obs
 
@@ -346,9 +346,7 @@ class OnPolicyRunner:
             self.writer.add_scalar("Train/mean_episode_length", statistics.mean(locs["lenbuffer"]), locs["it"])
             if self.logger_type != "wandb":  # wandb does not support non-integer x-axis logging
                 self.writer.add_scalar("Train/mean_reward/time", statistics.mean(locs["rewbuffer"]), self.tot_time)
-                self.writer.add_scalar(
-                    "Train/mean_episode_length/time", statistics.mean(locs["lenbuffer"]), self.tot_time
-                )
+                self.writer.add_scalar("Train/mean_episode_length/time", statistics.mean(locs["lenbuffer"]), self.tot_time)
 
         str = f" \033[1m Learning iteration {locs['it']}/{locs['tot_iter']} \033[0m "
 
@@ -520,18 +518,12 @@ class OnPolicyRunner:
 
         # check if user has device specified for local rank
         if self.device != f"cuda:{self.gpu_local_rank}":
-            raise ValueError(
-                f"Device '{self.device}' does not match expected device for local rank '{self.gpu_local_rank}'."
-            )
+            raise ValueError(f"Device '{self.device}' does not match expected device for local rank '{self.gpu_local_rank}'.")
         # validate multi-gpu configuration
         if self.gpu_local_rank >= self.gpu_world_size:
-            raise ValueError(
-                f"Local rank '{self.gpu_local_rank}' is greater than or equal to world size '{self.gpu_world_size}'."
-            )
+            raise ValueError(f"Local rank '{self.gpu_local_rank}' is greater than or equal to world size '{self.gpu_world_size}'.")
         if self.gpu_global_rank >= self.gpu_world_size:
-            raise ValueError(
-                f"Global rank '{self.gpu_global_rank}' is greater than or equal to world size '{self.gpu_world_size}'."
-            )
+            raise ValueError(f"Global rank '{self.gpu_global_rank}' is greater than or equal to world size '{self.gpu_world_size}'.")
 
         # initialize torch distributed
         torch.distributed.init_process_group(backend="nccl", rank=self.gpu_global_rank, world_size=self.gpu_world_size)
