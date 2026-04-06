@@ -166,9 +166,55 @@ class RobotSkyWQEnv(BaseEnv):
 
         return current_actor_obs, current_critic_obs
 
+    def compute_observations(self):
+        current_actor_obs, current_critic_obs = self.compute_current_observations()
+        if self.add_noise:
+            current_actor_obs += (2 * torch.rand_like(current_actor_obs) - 1) * self.noise_scale_vec
+
+        self.actor_obs_buffer.append(current_actor_obs)
+        self.critic_obs_buffer.append(current_critic_obs)
+
+        actor_obs = self.actor_obs_buffer.buffer.reshape(self.num_envs, -1)
+        critic_obs = self.critic_obs_buffer.buffer.reshape(self.num_envs, -1)
+        # if self.cfg.scene.height_scanner.enable_height_scan:
+        #     height_scan = (
+        #         self.height_scanner.data.pos_w[:, 2].unsqueeze(1) - self.height_scanner.data.ray_hits_w[..., 2] - self.cfg.normalization.height_scan_offset
+        #     ) * self.obs_scales.height_scan
+        #     critic_obs = torch.cat([critic_obs, height_scan], dim=-1)
+        #     if self.add_noise:
+        #         height_scan += (2 * torch.rand_like(height_scan) - 1) * self.height_scan_noise_vec
+        #     actor_obs = torch.cat([actor_obs, height_scan], dim=-1)
+
+        actor_obs = torch.clip(actor_obs, -self.clip_obs, self.clip_obs)
+        critic_obs = torch.clip(critic_obs, -self.clip_obs, self.clip_obs)
+
+        return actor_obs, critic_obs
+
     # ------------------------------------------------------------------
     # Stepping
     # ------------------------------------------------------------------
+
+    def _teleport_to_origin(self):
+        """当机器人离 env_origin 的 XY 距离超过阈值时，传送回 env_origin 正上方。
+        传送时保持当前 z 高度偏移和姿态
+        """
+        root_pos_w = self.robot.data.root_pos_w
+        env_origins = self.scene.env_origins
+
+        displacement = torch.abs(root_pos_w[:, :2] - env_origins[:, :2])
+        teleport_mask = (displacement[:, 0] > self.cfg.robot.teleport_threshold[0]) | (displacement[:, 1] > self.cfg.robot.teleport_threshold[1])
+        if not teleport_mask.any():
+            return
+
+        teleport_ids = teleport_mask.nonzero(as_tuple=False).flatten()
+
+        z_offset = root_pos_w[teleport_ids, 2] - env_origins[teleport_ids, 2]
+        root_pos_w[teleport_ids, 0] = env_origins[teleport_ids, 0]
+        root_pos_w[teleport_ids, 1] = env_origins[teleport_ids, 1]
+        root_pos_w[teleport_ids, 2] = env_origins[teleport_ids, 2] + z_offset + 0.02
+
+        root_quat_w = self.robot.data.root_quat_w
+        self.robot.write_root_pose_to_sim(torch.cat([root_pos_w, root_quat_w], dim=-1))
 
     def step(self, actions: torch.Tensor):
         delayed_actions = self.action_buffer.compute(actions)
@@ -205,6 +251,8 @@ class RobotSkyWQEnv(BaseEnv):
         if "interval" in self.event_manager.available_modes:
             self.event_manager.apply(mode="interval", dt=self.step_dt)
 
+        # self._teleport_to_origin()
+
         self.reset_buf, self.time_out_buf = self.check_reset()
         reward_buf = self.reward_manager.compute(self.step_dt)
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
@@ -229,8 +277,9 @@ class RobotSkyWQEnv(BaseEnv):
         # lin_vel_cmd_xy = self.command_generator.command[:, :2]
         # lin_vel_fb_xy = vel_yaw[:, :2]
         # lin_vel_diff = torch.sum(torch.square(lin_vel_cmd_xy - lin_vel_fb_xy), dim=1)
-        # reset_buf |= torch.abs(self.current_angle_diff) > self.cfg.robot.terminate_angle_diff
         # reset_buf |= lin_vel_diff > self.cfg.robot.terminate_lin_vel_diff
+
+        # reset_buf |= torch.abs(self.current_angle_diff) > self.cfg.robot.terminate_angle_diff
 
         return reset_buf, time_out_buf
 
