@@ -35,20 +35,21 @@ ROBOTSKY_WQ_CFG = ArticulationCfg(
     ),
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.5),
+        # Roll defaults match baseline run logs/robotsky_wq_flat/2026-03-31_13-14-51 (wider init for stability).
         joint_pos={
-            ".*RF_Roll_Joint.*": 0.1,
+            ".*RF_Roll_Joint.*": 0.3,
             ".*RF_Hip_Joint.*": -0.5,
             ".*RF_Knee_Joint.*": 1.0,
             ".*RF_Wheel_Joint.*": 0.0,
-            ".*LF_Roll_Joint.*": -0.1,
+            ".*LF_Roll_Joint.*": -0.3,
             ".*LF_Hip_Joint.*": -0.5,
             ".*LF_Knee_Joint.*": 1.0,
             ".*LF_Wheel_Joint.*": 0.0,
-            ".*RB_Roll_Joint.*": 0.1,
+            ".*RB_Roll_Joint.*": 0.3,
             ".*RB_Hip_Joint.*": 0.5,
             ".*RB_Knee_Joint.*": -1.0,
             ".*RB_Wheel_Joint.*": 0.0,
-            ".*LB_Roll_Joint.*": -0.1,
+            ".*LB_Roll_Joint.*": -0.3,
             ".*LB_Hip_Joint.*": 0.5,
             ".*LB_Knee_Joint.*": -1.0,
             ".*LB_Wheel_Joint.*": 0.0,
@@ -65,6 +66,7 @@ ROBOTSKY_WQ_CFG = ArticulationCfg(
             # velocity_limit_sim=10.0,
             stiffness={".*Roll_Joint.*": 20.0},
             damping={".*Roll_Joint.*": 1.0},
+            armature={".*Roll_Joint.*": 0.02},
         ),
         "legs": ImplicitActuatorCfg(
             joint_names_expr=[
@@ -91,6 +93,10 @@ ROBOTSKY_WQ_CFG = ArticulationCfg(
                 ".*Hip_Joint.*": 1.0,
                 ".*Knee_Joint.*": 1.0,
             },
+            armature={
+                ".*Hip_Joint.*": 0.02,
+                ".*Knee_Joint.*": 0.02,
+            },
         ),
         "feet": ImplicitActuatorCfg(
             joint_names_expr=[".*Wheel_Joint.*"],
@@ -100,6 +106,7 @@ ROBOTSKY_WQ_CFG = ArticulationCfg(
             # velocity_limit_sim=10.0,
             stiffness={".*Wheel_Joint.*": 0.0},
             damping={".*Wheel_Joint.*": 1.0},
+            armature={".*Wheel_Joint.*": 0.02},
         ),
     },
 )

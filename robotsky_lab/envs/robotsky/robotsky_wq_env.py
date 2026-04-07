@@ -195,26 +195,33 @@ class RobotSkyWQEnv(BaseEnv):
     # ------------------------------------------------------------------
 
     def _teleport_to_origin(self):
-        """当机器人离 env_origin 的 XY 距离超过阈值时，传送回 env_origin 正上方。
-        传送时保持当前 z 高度偏移和姿态
-        """
-        root_pos_w = self.robot.data.root_pos_w
-        env_origins = self.scene.env_origins
+        """当机器人离 env_origin 的 XY 距离超过阈值时，传送回 env_origin 上方的安全高度。
 
-        displacement = torch.abs(root_pos_w[:, :2] - env_origins[:, :2])
-        teleport_mask = (displacement[:, 0] > self.cfg.robot.teleport_threshold[0]) | (displacement[:, 1] > self.cfg.robot.teleport_threshold[1])
-        if not teleport_mask.any():
+        只更新需要传送的 env，保留当前姿态，并将根部线速度/角速度清零，
+        避免把旧动量带到新位置后引起数值不稳定。
+        """
+        teleport_threshold = getattr(self.cfg.robot, "teleport_threshold", None)
+        if teleport_threshold is None:
             return
 
-        teleport_ids = teleport_mask.nonzero(as_tuple=False).flatten()
+        root_pos_w = self.robot.data.root_pos_w
+        env_origins = self.scene.env_origins
+        threshold = torch.as_tensor(teleport_threshold, device=self.device, dtype=root_pos_w.dtype)
 
-        z_offset = root_pos_w[teleport_ids, 2] - env_origins[teleport_ids, 2]
-        root_pos_w[teleport_ids, 0] = env_origins[teleport_ids, 0]
-        root_pos_w[teleport_ids, 1] = env_origins[teleport_ids, 1]
-        root_pos_w[teleport_ids, 2] = env_origins[teleport_ids, 2] + z_offset + 0.02
+        displacement_xy = torch.abs(root_pos_w[:, :2] - env_origins[:, :2])
+        teleport_ids = torch.any(displacement_xy > threshold.unsqueeze(0), dim=1).nonzero(as_tuple=False).flatten()
+        if teleport_ids.numel() == 0:
+            return
 
-        root_quat_w = self.robot.data.root_quat_w
-        self.robot.write_root_pose_to_sim(torch.cat([root_pos_w, root_quat_w], dim=-1))
+        root_state = self.robot.data.root_state_w[teleport_ids].clone()
+        target_origins = env_origins[teleport_ids]
+        default_root_state = self.robot.data.default_root_state[teleport_ids]
+
+        root_state[:, 0:2] = target_origins[:, 0:2]
+        root_state[:, 2] = target_origins[:, 2] + default_root_state[:, 2] + 0.01
+        root_state[:, 7:13] = 0.0
+
+        self.robot.write_root_state_to_sim(root_state, env_ids=teleport_ids)
 
     def step(self, actions: torch.Tensor):
         delayed_actions = self.action_buffer.compute(actions)
@@ -251,7 +258,7 @@ class RobotSkyWQEnv(BaseEnv):
         if "interval" in self.event_manager.available_modes:
             self.event_manager.apply(mode="interval", dt=self.step_dt)
 
-        # self._teleport_to_origin()
+        self._teleport_to_origin()
 
         self.reset_buf, self.time_out_buf = self.check_reset()
         reward_buf = self.reward_manager.compute(self.step_dt)

@@ -2,6 +2,7 @@
 # All rights reserved.
 # Modifications are licensed under BSD-3-Clause.
 
+
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import EventTermCfg as EventTerm
 from isaaclab.managers.scene_entity_cfg import SceneEntityCfg
@@ -55,40 +56,54 @@ class WheelLeggedRobotCfg(RobotCfg):
 
     wheel_joint_names: list = [".*Wheel_Joint.*"]
     # Velocity command scale for wheel joints (rad/s per unit action)
-    wheel_action_scale: float = 4.0
+    wheel_action_scale: float = 2.5  # 4.0
 
-    terminate_angle_diff: float = math.pi / 4
+    # Baseline run 2026-03-31_13-14-51 (≈60°): terminate_angle_diff = pi/3 rad
+    terminate_angle_diff: float = math.pi / 3
+
+    # Consecutive env steps with lin_vel_diff > terminate_lin_vel_diff before episode ends.
     terminate_lin_vel_diff: float = 0.5
+    # terminate_lin_vel_diff_steps: int = 50
+
+    teleport_threshold: tuple[float, float] = (20.0, 20.0)
 
 
 @configclass
 class RobotSkyWQRewardCfg(RewardCfg):
+    # Baseline: logs/robotsky_wq_flat/2026-03-31_13-14-51/params/env.yaml
     track_lin_vel_xy_exp = RewTerm(
         func=mdp.track_lin_vel_xy_yaw_frame_exp,
-        weight=3.0,
-        params={"std": 0.25},
+        weight=4.0,
+        params={"std": 0.4},
     )
     track_ang_vel_z_exp = RewTerm(
         func=mdp.track_ang_vel_z_world_exp,
-        weight=2.0,
-        params={"std": 0.25},
+        weight=3.0,
+        params={"std": 0.3},
     )
+
+    penalty_lin_vel_diff = RewTerm(
+        func=mdp.penalty_lin_vel_diff,
+        weight=-0.5,
+        params={"threshold": 0.25},
+    )
+
     base_height_l2 = RewTerm(
         func=mdp.base_height_l2,
-        weight=-0.02,  # -0.1 # -0.02 # -0.01
+        weight=-0.05,
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*base_link.*"),
-            "sensor_cfg": None,  # SceneEntityCfg("height_scanner_base"),
-            "target_height": 0.3,
+            "sensor_cfg": SceneEntityCfg("height_scanner"),
+            "target_height": 0.25,
         },
     )
 
-    lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-1.0)
+    lin_vel_z_l2 = RewTerm(func=mdp.lin_vel_z_l2, weight=-2.0)
     ang_vel_xy_l2 = RewTerm(func=mdp.ang_vel_xy_l2, weight=-0.05)
     # energy = RewTerm(func=mdp.energy, weight=-1e-3)
     undesired_contacts = RewTerm(
         func=mdp.undesired_contacts,
-        weight=-1.0,  # -2.0 # -1.0
+        weight=-2.0,
         params={
             "sensor_cfg": SceneEntityCfg("contact_sensor", body_names=[".*base_link.*", ".*Knee_Link.*", ".*Hip_Link.*"]),
             "threshold": 1.0,
@@ -104,7 +119,7 @@ class RobotSkyWQRewardCfg(RewardCfg):
     )
     body_orientation_l2 = RewTerm(
         func=mdp.body_orientation_l2,
-        weight=-2.0,  # -1.0 # -2.0
+        weight=-2.0,
         params={"asset_cfg": SceneEntityCfg("robot", body_names=".*base_link.*")},
     )
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-1.0)
@@ -112,10 +127,10 @@ class RobotSkyWQRewardCfg(RewardCfg):
     termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.0)
     feet_force = RewTerm(
         func=mdp.body_force,
-        weight=-3e-3,  # -1.5e-4,  # -3e-3,
+        weight=-0.005,
         params={
             "sensor_cfg": SceneEntityCfg("contact_sensor", body_names=".*Wheel_Link.*"),
-            "threshold": 500,
+            "threshold": 400,
             "max_reward": 400,
         },
     )
@@ -141,6 +156,10 @@ class RobotSkyWQRewardCfg(RewardCfg):
     #     weight=0.3, # 0.15
     #     params={"sensor_cfg": SceneEntityCfg("contact_sensor", body_names=".*Wheel_Link.*"), "threshold": 0.4},
     # )
+
+    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.1)
+    # action_smoothness_l2 = RewTerm(func=mdp.action_smoothness_l2, weight=-0.01)
+
     # Penalise leg joints straying from default (energy efficiency)
     # joint_torque_l2 = RewTerm(
     #     func=mdp.joint_torque_l2,
@@ -152,10 +171,9 @@ class RobotSkyWQRewardCfg(RewardCfg):
         weight=-2.5e-7,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
     )
-    action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.02)  # -0.001 # -0.01
     joint_deviation_legs = RewTerm(
         func=mdp.joint_deviation_l1,
-        weight=-0.02,  # -0.05 # -0.02 # -0.5 # -0.2 # -0.02
+        weight=-0.1,  # 2026-03-31_13-15-16 used -0.25 ("kind of good"); -0.5 matches 13-14-51 ("more stable")
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
     )
     # joint_deviation_legs = RewTerm(
@@ -175,7 +193,7 @@ class RobotSkyWQRewardCfg(RewardCfg):
     )
     joint_pos_limits = RewTerm(
         func=mdp.joint_pos_limits,
-        weight=-5.0,  # -5.0 # -2.0
+        weight=-2.0,  # -5.0 # -2.0
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
     )
     joint_vel_limits = RewTerm(
@@ -186,11 +204,11 @@ class RobotSkyWQRewardCfg(RewardCfg):
             "soft_ratio": 0.8,
         },
     )
-    joint_power = RewTerm(
-        func=mdp.joint_power,
-        weight=-1.0e-6,  # -1.0e-6 # -2.0e-5
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
-    )
+    # joint_power = RewTerm(
+    #     func=mdp.joint_power,
+    #     weight=-1.0e-6,  # -1.0e-6 # -2.0e-5
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
+    # )
     # joint_mirror = RewTerm(
     #     func=mdp.joint_mirror,
     #     weight=-0.01,  # -0.05
@@ -204,12 +222,12 @@ class RobotSkyWQRewardCfg(RewardCfg):
     # )
     stand_still = RewTerm(
         func=mdp.stand_still,
-        weight=-2.0,  # -0.5,  # -0.2
+        weight=-1.0,  # -0.5,  # -0.2
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Hip_Joint.*", ".*Knee_Joint.*", ".*Roll_Joint.*"])},
     )
     stand_still_wheel = RewTerm(
         func=mdp.stand_still_vel,
-        weight=-2.0e-2,  # -2.0e-2 # -1.0e-2
+        weight=-1.0,  # -2.0e-2 # -1.0e-2
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Wheel_Joint.*"])},
     )
     # wheel_torque_l2 = RewTerm(
@@ -217,14 +235,14 @@ class RobotSkyWQRewardCfg(RewardCfg):
     #     weight=-2.5e-7,
     #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Wheel_Joint.*"])},
     # )
-    wheel_velocity_l2 = RewTerm(
-        func=mdp.joint_vel_l2,
-        weight=-1.0e-5,  # 1.0e-6 # 1.0e-5
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Wheel_Joint.*"])},
-    )
+    # wheel_velocity_l2 = RewTerm(
+    #     func=mdp.joint_vel_l2,
+    #     weight=-1.0e-5,  # 1.0e-6 # 1.0e-5
+    #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Wheel_Joint.*"])},
+    # )
     wheel_acc_l2 = RewTerm(
         func=mdp.joint_acc_l2,
-        weight=-2.5e-9,  # -2.5e-9 # -1.0e-7 # -1.0e-6
+        weight=-1.0e-7,  # -2.5e-9 # -1.0e-7 # -1.0e-6
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*Wheel_Joint.*"])},
     )
     # wheel_power = RewTerm(
@@ -234,7 +252,7 @@ class RobotSkyWQRewardCfg(RewardCfg):
     # )
     wheel_vel_limits = RewTerm(
         func=mdp.joint_vel_limits,
-        weight=-0.1,
+        weight=-1.0e-3,  # -0.01 # -0.1
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=[".*Wheel_Joint.*"]),
             "soft_ratio": 0.9,
@@ -253,7 +271,7 @@ class RobotSkyWQFlatEnvCfg(BaseEnvCfg):
         terrain_generator=GRAVEL_TERRAINS_CFG,
         max_init_terrain_level=5,
         height_scanner=HeightScannerCfg(
-            enable_height_scan=False,
+            enable_height_scan=True,
             prim_body_name="base_link",
             resolution=0.1,
             size=(1.6, 1.0),
@@ -274,7 +292,7 @@ class RobotSkyWQFlatEnvCfg(BaseEnvCfg):
             joint_pos=1.0,
             joint_vel=0.1,  # 0.05 # 1.0
             actions=1.0,
-            height_scan=1.0,
+            height_scan=1.0,  # 1.0
             wheel_vel=0.1,
         ),
         clip_observations=100.0,
@@ -288,14 +306,15 @@ class RobotSkyWQFlatEnvCfg(BaseEnvCfg):
         heading_command=False,
         heading_control_stiffness=0.5,
         debug_vis=True,
-        ranges=CommandRangesCfg(lin_vel_x=(-2.0, 2.0), lin_vel_y=(-0.5, 0.5), ang_vel_z=(-2.0, 2.0), heading=(-math.pi, math.pi)),
+        ranges=CommandRangesCfg(lin_vel_x=(-2.0, 2.0), lin_vel_y=(-0.6, 0.6), ang_vel_z=(-2.0, 2.0), heading=(-math.pi, math.pi)),
     )
     noise: NoiseCfg = NoiseCfg(
         add_noise=True,
         noise_scales=NoiseScalesCfg(
+            lin_vel=0.2,
             ang_vel=0.2,
             projected_gravity=0.05,
-            joint_pos=0.01,
+            joint_pos=0.03,
             joint_vel=0.5,
             height_scan=0.1,
         ),
@@ -307,10 +326,10 @@ class RobotSkyWQFlatEnvCfg(BaseEnvCfg):
                 mode="startup",
                 params={
                     "asset_cfg": SceneEntityCfg("robot", body_names=".*"),
-                    "static_friction_range": (0.4, 1.6),
-                    "dynamic_friction_range": (0.4, 0.8),
-                    "restitution_range": (0.0, 0.005),
-                    "num_buckets": 64,
+                    "static_friction_range": (0.3, 1.8),
+                    "dynamic_friction_range": (0.3, 0.8),
+                    "restitution_range": (0.0, 0.01),
+                    "num_buckets": 128,
                 },
             ),
             add_base_mass=EventTerm(
@@ -318,7 +337,7 @@ class RobotSkyWQFlatEnvCfg(BaseEnvCfg):
                 mode="startup",
                 params={
                     "asset_cfg": SceneEntityCfg("robot", body_names=".*base_link.*"),
-                    "mass_distribution_params": (-4.0, 4.0),
+                    "mass_distribution_params": (-2.0, 2.0),
                     "operation": "add",
                 },
             ),
@@ -352,7 +371,7 @@ class RobotSkyWQFlatEnvCfg(BaseEnvCfg):
                 params={"velocity_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5)}},
             ),
         ),
-        action_delay=ActionDelayCfg(enable=True, params={"max_delay": 1, "min_delay": 0}),
+        action_delay=ActionDelayCfg(enable=True, params={"max_delay": 2, "min_delay": 0}),
     )
     sim: SimCfg = SimCfg(
         dt=0.005,
@@ -368,6 +387,8 @@ class RobotSkyWQFlatEnvCfg(BaseEnvCfg):
 class RobotSkyWQFlatAgentCfg(BaseAgentCfg):
     experiment_name: str = "robotsky_wq_flat"
     wandb_project: str = "robotsky_wq_flat"
+    # 16 actuated DoF; keeps policy std >= floor in distribution (avoids Normal scale <= 0).
+    min_normalized_std = [0.001] * 16
 
     policy = RslRlPpoActorCriticCfg(
         class_name="ActorCritic",
@@ -379,7 +400,7 @@ class RobotSkyWQFlatAgentCfg(BaseAgentCfg):
     )
     algorithm = RslRlPpoAlgorithmCfg(
         class_name="PPO",
-        value_loss_coef=1.0,
+        value_loss_coef=1.2,
         use_clipped_value_loss=True,
         clip_param=0.2,
         entropy_coef=0.005,  # 0.002 # 0.0 # 0.01 # 0.005 # 0.001
@@ -404,8 +425,8 @@ class RobotSkyWQFlatAgentCfg(BaseAgentCfg):
 
     def __post_init__(self):
         super().__post_init__()
-        self.num_steps_per_env = 16  # 24
-        self.max_iterations = 20001
+        self.num_steps_per_env = 24
+        self.max_iterations = 30001
         self.empirical_normalization = False
         self.save_interval = 1000
         self.logger = "tensorboard"
@@ -431,6 +452,7 @@ class RobotSkyWQRoughEnvCfg(RobotSkyWQFlatEnvCfg):
 class RobotSkyWQRoughAgentCfg(BaseAgentCfg):
     experiment_name: str = "robotsky_wq_rough"
     wandb_project: str = "robotsky_wq_rough"
+    min_normalized_std = [0.05] * 16
 
     def __post_init__(self):
         super().__post_init__()

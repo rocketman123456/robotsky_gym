@@ -78,6 +78,21 @@ class ActorCritic(nn.Module):
         # disable args validation for speedup
         Normal.set_default_validate_args(False)
 
+    def set_min_action_std(self, min_std: torch.Tensor) -> None:
+        """Lower bound for policy std in normalized action space (matches train_cfg min_normalized_std)."""
+        noise_param = self.std if self.noise_std_type == "scalar" else self.log_std
+        n = noise_param.shape[0]
+        t = min_std.detach().flatten().to(dtype=noise_param.dtype, device=noise_param.device)
+        if t.numel() == 1:
+            t = t.expand(n).clone()
+        elif t.shape[0] != n:
+            raise ValueError(f"min_action_std length {t.shape[0]} does not match num_actions {n}")
+        if getattr(self, "min_action_std", None) is not None:
+            self.min_action_std.copy_(t.to(device=self.min_action_std.device))
+        else:
+            # Not serialized: recomputed from train config each run; keeps old checkpoints loadable.
+            self.register_buffer("min_action_std", t.clone(), persistent=False)
+
     @staticmethod
     # not used at the moment
     def init_weights(sequential, scales):
@@ -109,9 +124,22 @@ class ActorCritic(nn.Module):
         mean = self.actor(observations)
         # compute standard deviation
         if self.noise_std_type == "scalar":
-            std = self.std.expand_as(mean)
+            # Unconstrained Parameter: optimizers can drive std <= 0; Normal.sample() then fails.
+            raw = self.std
+            if getattr(self, "min_action_std", None) is not None:
+                ms = self.min_action_std.to(dtype=raw.dtype, device=raw.device)
+                std = torch.maximum(raw, ms)
+            else:
+                std = raw
+            std = std.clamp(min=1e-6).expand_as(mean)
         elif self.noise_std_type == "log":
-            std = torch.exp(self.log_std).expand_as(mean)
+            if getattr(self, "min_action_std", None) is not None:
+                ms = self.min_action_std.to(dtype=self.log_std.dtype, device=self.log_std.device).clamp(min=1e-6)
+                log_floor = torch.log(ms)
+                log_std = torch.maximum(self.log_std, log_floor)
+            else:
+                log_std = self.log_std
+            std = torch.exp(log_std).expand_as(mean)
         else:
             raise ValueError(f"Unknown standard deviation type: {self.noise_std_type}. Should be 'scalar' or 'log'")
         # create distribution

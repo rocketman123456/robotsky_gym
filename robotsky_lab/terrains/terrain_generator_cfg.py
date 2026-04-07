@@ -34,7 +34,10 @@ GRAVEL_TERRAINS_CFG = TerrainGeneratorCfg(
     use_cache=False,
     sub_terrains={
         "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-            proportion=0.2, noise_range=(-0.02, 0.04), noise_step=0.02, border_width=0.25
+            proportion=0.2,
+            noise_range=(-0.02, 0.04),
+            noise_step=0.02,
+            border_width=0.25,
         )
     },
 )
@@ -82,16 +85,10 @@ ROUGH_TERRAINS_CFG = TerrainGeneratorCfg(
             border_width=1.0,
             holes=False,
         ),
-        "boxes": terrain_gen.MeshRandomGridTerrainCfg(
-            proportion=0.15, grid_width=0.45, grid_height_range=(0.0, 0.15), platform_width=2.0
-        ),
-        "random_rough": terrain_gen.HfRandomUniformTerrainCfg(
-            proportion=0.15, noise_range=(-0.02, 0.04), noise_step=0.02, border_width=0.25
-        ),
+        "boxes": terrain_gen.MeshRandomGridTerrainCfg(proportion=0.15, grid_width=0.45, grid_height_range=(0.0, 0.15), platform_width=2.0),
+        "random_rough": terrain_gen.HfRandomUniformTerrainCfg(proportion=0.15, noise_range=(-0.02, 0.04), noise_step=0.02, border_width=0.25),
         "wave": terrain_gen.HfWaveTerrainCfg(proportion=0.15, amplitude_range=(0.0, 0.2), num_waves=5.0),
-        "high_platform": terrain_gen.MeshPitTerrainCfg(
-            proportion=0.15, pit_depth_range=(0.0, 0.3), platform_width=2.0, double_pit=True
-        ),
+        "high_platform": terrain_gen.MeshPitTerrainCfg(proportion=0.15, pit_depth_range=(0.0, 0.3), platform_width=2.0, double_pit=True),
         # "star": terrain_gen.MeshStarTerrainCfg(
         #     proportion=0.15, num_bars=6, bar_width_range=(0.05, 0.05), bar_height_range=(0.0, 0.25), platform_width=1.0
         # ),

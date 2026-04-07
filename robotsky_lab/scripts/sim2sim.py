@@ -193,11 +193,11 @@ def get_robot_preset(robot_type):
             # Isaac-order leg/wheel splits for obs are derived from isaac_to_mujoco_idx in main().
             "wheel_joint_indices_motor": [3, 7, 11, 15],
             # Defaults match robotsky_rl_controller rl_controller_node.py
-            "obs_scale_ang_vel": 1.0,
+            "obs_scale_ang_vel": 0.5,  # 1.0 # 0.5
             "obs_scale_projected_gravity": 1.0,
             "obs_scale_commands": 1.0,
             "obs_scale_joint_pos": 1.0,
-            "obs_scale_joint_vel_leg": 1.0,
+            "obs_scale_joint_vel_leg": 0.1,  # 1.0 # 0.1
             "obs_scale_joint_vel_wheel": 0.1,
             "obs_scale_actions": 1.0,
             "clip_observations": 100.0,
@@ -206,19 +206,19 @@ def get_robot_preset(robot_type):
             "action_scale": 0.25,
             "wheel_action_scale": 4.0,
             "default_joint_angles": {
-                "RF_Roll": 0.1,
+                "RF_Roll": 0.3,  # 0.1
                 "RF_Hip": -0.5,
                 "RF_Knee": 1.0,
                 "RF_Wheel": 0.0,
-                "LF_Roll": -0.1,
+                "LF_Roll": -0.3,  # -0.1
                 "LF_Hip": -0.5,
                 "LF_Knee": 1.0,
                 "LF_Wheel": 0.0,
-                "RB_Roll": 0.1,
+                "RB_Roll": 0.3,  # 0.1
                 "RB_Hip": 0.5,
                 "RB_Knee": -1.0,
                 "RB_Wheel": 0.0,
-                "LB_Roll": -0.1,
+                "LB_Roll": -0.3,  # -0.1
                 "LB_Hip": 0.5,
                 "LB_Knee": -1.0,
                 "LB_Wheel": 0.0,
@@ -235,7 +235,7 @@ def get_robot_preset(robot_type):
                 "Roll": 1.0,
                 "Hip": 1.0,
                 "Knee": 1.0,
-                "Wheel": 2.0,
+                "Wheel": 1.0,
             },
             "friction": {
                 "Roll": 1e-4,
@@ -652,9 +652,7 @@ def main():
                 # Apply PD control
                 # Note: Friction can be added with: -dof_friction * sign(dof_vel) * abs(dof_vel)
                 ctrl_torque = dof_stiffness * (dof_targets - dof_pos) - dof_damping * dof_vel
-                ctrl_torque[wheel_index_motor] = dof_damping[wheel_index_motor] * (
-                    dof_targets[wheel_index_motor] - dof_vel[wheel_index_motor]
-                )
+                ctrl_torque[wheel_index_motor] = dof_damping[wheel_index_motor] * (dof_targets[wheel_index_motor] - dof_vel[wheel_index_motor])
 
                 # Apply motor torque clipping based on velocity if enabled
                 # if args.enable_motor_clipping and "motor_mapping" in robot_preset:

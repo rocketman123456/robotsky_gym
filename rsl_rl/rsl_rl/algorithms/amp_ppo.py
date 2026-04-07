@@ -118,6 +118,8 @@ class AMPPPO:
         # PPO components
         self.policy = policy
         self.policy.to(self.device)
+        if min_std is not None and hasattr(self.policy, "set_min_action_std"):
+            self.policy.set_min_action_std(min_std)
         # Create optimizer
         params = [
             {"params": self.policy.parameters(), "name": "policy"},
@@ -429,12 +431,12 @@ class AMPPPO:
             nn.utils.clip_grad_norm_(self.policy.parameters(), self.max_grad_norm)
             self.optimizer.step()
 
-            # Clamp action noise std to minimum value
-            if self.min_std is not None:
-                if self.policy.noise_std_type == "scalar":
-                    self.policy.std.data = torch.max(self.policy.std.data, self.min_std)
-                elif self.policy.noise_std_type == "log":
-                    self.policy.log_std.data = torch.max(self.policy.log_std.data, torch.log(self.min_std))
+            # # Clamp action noise std to minimum value
+            # if self.min_std is not None:
+            #     if self.policy.noise_std_type == "scalar":
+            #         self.policy.std.data = torch.max(self.policy.std.data, self.min_std)
+            #     elif self.policy.noise_std_type == "log":
+            #         self.policy.log_std.data = torch.max(self.policy.log_std.data, torch.log(self.min_std))
 
             # -- For RND
             if self.rnd_optimizer:
