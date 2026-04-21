@@ -5,3 +5,5 @@ logs/
 wandb/
 .DS_Store
 .vscode/settings.json
+
+MUJOCO_LOG.txt
